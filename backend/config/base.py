@@ -10,10 +10,13 @@ from datetime import timedelta
 from urllib.parse import quote_plus
 
 from cachelib import FileSystemCache
+from pathlib import Path
 from dotenv import load_dotenv
 
+BASE_DIR = Path(_file_).resolve().parents[2]
+
 # Muat file .env dari root project sebelum konfigurasi dibaca.
-load_dotenv()
+load_dotenv(BASE_DIR / ".env")
 
 
 def _get_bool(key: str, default: bool = False) -> bool:
