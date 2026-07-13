@@ -1,0 +1,23 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}Pengajuan Ditolak Dosen — {{ config.APP_NAME }}{% endblock %}
+{% set status_color = "#dc3545" %}
+
+{% block heading %}Pengajuan Surat Izin Observasi Ditolak{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px 0;">Halo {{ observation_request.student.user.name }},</p>
+<p style="margin:0 0 12px 0;">
+    Mohon maaf, dosen pembimbing Anda <strong>menolak</strong> pengajuan surat izin observasi
+    berikut:
+</p>
+{% include "emails/_detail_table.html" %}
+{% if rejection_note %}
+<p style="margin:0 0 12px 0; background-color:#fdecea; padding:10px 12px; border-radius:4px; color:#842029;">
+    <strong>Catatan Penolakan:</strong> {{ rejection_note }}
+</p>
+{% endif %}
+<p style="margin:0;">
+    Silakan periksa catatan di atas, lalu ajukan surat izin observasi baru melalui
+    {{ config.APP_NAME }} apabila Anda ingin melanjutkan proses ini.
+</p>
+{% endblock %}

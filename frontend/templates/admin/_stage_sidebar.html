@@ -1,0 +1,66 @@
+{% macro admin_icon(name) %}
+    {% if name == "grid" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.4"></rect><rect x="14" y="4" width="6" height="6" rx="1.4"></rect><rect x="4" y="14" width="6" height="6" rx="1.4"></rect><rect x="14" y="14" width="6" height="6" rx="1.4"></rect></svg>
+    {% elif name == "users" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path><circle cx="9.5" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    {% elif name == "plus" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+    {% elif name == "clipboard" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1.4"></rect><path d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+    {% elif name == "logout" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
+    {% elif name == "check" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="m8.7 12.4 2.1 2.1 4.7-5"></path></svg>
+    {% elif name == "x" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="m9.5 9.5 5 5"></path><path d="m14.5 9.5-5 5"></path></svg>
+    {% elif name == "clock" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>
+    {% elif name == "team" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11a4 4 0 1 0-8 0"></path><path d="M4 20a6 6 0 0 1 12 0"></path><path d="M17.5 13.5a3 3 0 0 1 2.5 3V20"></path><path d="M17 5.3a3 3 0 0 1 0 5.4"></path></svg>
+    {% elif name == "pencil" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="m16.5 3.5 4 4L7 21H3v-4z"></path></svg>
+    {% elif name == "cap" %}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 10-10-5-10 5 10 5z"></path><path d="M6 12v5c3 2 9 2 12 0v-5"></path></svg>
+    {% endif %}
+{% endmacro %}
+
+<aside class="admin-stage-sidebar" aria-label="Navigasi admin">
+    <div class="admin-stage-brand">
+        <img src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="OBSERVA.FTI">
+        <div>
+            <span class="admin-stage-brand-title">OBSERVA<span>.FTI</span></span>
+            <span class="admin-stage-brand-subtitle">Digital Document System</span>
+        </div>
+    </div>
+
+    <nav class="admin-stage-nav">
+        <a class="admin-stage-link {{ 'active' if active_menu == 'dashboard' else '' }}" href="{{ url_for('admin.dashboard') }}">
+            {{ admin_icon("grid") }}
+            <span>Ringkasan Dashboard</span>
+        </a>
+        <a class="admin-stage-link {{ 'active' if active_menu == 'academic' else '' }}" href="{{ url_for('admin.akademik_pengguna') }}">
+            {{ admin_icon("users") }}
+            <span>Kelola Akademik &amp; Pengguna</span>
+        </a>
+        <a class="admin-stage-link {{ 'active' if active_menu == 'kop' else '' }}" href="{{ url_for('admin.kop_surat') }}">
+            {{ admin_icon("plus") }}
+            <span>Pengaturan KOP Surat</span>
+        </a>
+        <a class="admin-stage-link {{ 'active' if active_menu == 'history' else '' }}" href="{{ url_for('admin.riwayat_pengajuan') }}">
+            {{ admin_icon("clipboard") }}
+            <span>Riwayat Pengajuan</span>
+        </a>
+    </nav>
+
+    <div class="admin-stage-account">
+        <div class="admin-stage-avatar">AD</div>
+        <div class="admin-stage-user">
+            <strong>{{ current_user.name or "Belum ada data." }}</strong>
+            <span>{{ current_user.email or "Belum ada data." }}</span>
+        </div>
+        <form action="{{ url_for('auth.logout') }}" method="POST" class="admin-stage-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" aria-label="Logout">{{ admin_icon("logout") }}</button>
+        </form>
+    </div>
+</aside>

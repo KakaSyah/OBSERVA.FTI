@@ -1,0 +1,537 @@
+{% extends "layouts/base.html" %}
+{% from "admin/_macros.html" import document_subject %}
+
+{% block title %}Review Final Surat Observasi - {{ config.APP_NAME }}{% endblock %}
+{% block body_class %} dosen-review-page{% endblock %}
+{% block main_class %} dosen-review-main{% endblock %}
+
+{% block content %}
+<section class="dosen-review-shell" aria-label="Review final surat observasi Kaprodi">
+    <header class="dosen-review-header">
+        <a class="dosen-review-brand" href="{{ url_for('kaprodi.dashboard') }}" aria-label="OBSERVA.FTI">
+            <img src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="" aria-hidden="true">
+            <span>
+                <strong>OBSERVA.<b>FTI</b></strong>
+                <small>DIGITAL DOCUMENT SYSTEM</small>
+            </span>
+        </a>
+
+        <div class="dosen-review-statusbar" aria-label="Ringkasan status">
+            <div class="dosen-status-strip">
+                <span>MENUNGGU: <strong class="is-waiting">{{ counts.menunggu }}</strong></span>
+                <span>DISETUJUI: <strong class="is-approved">{{ counts.disetujui }}</strong></span>
+                <span>DITOLAK: <strong class="is-rejected">{{ counts.ditolak }}</strong></span>
+            </div>
+            <button class="dosen-history-button" type="button" data-history-open>HISTORY</button>
+            <div class="dosen-header-menu">
+                <button class="dosen-menu-button" type="button" data-menu-toggle aria-label="Buka menu" aria-expanded="false">
+                    <span aria-hidden="true">⋮</span>
+                </button>
+                <div class="dosen-menu-dropdown" data-menu-dropdown aria-hidden="true">
+                    <form action="{{ url_for('auth.logout') }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="dosen-review-workspace">
+        <aside class="dosen-review-sidebar" aria-label="Daftar permohonan validasi akhir">
+            <section class="dosen-role-card">
+                <h2>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm7 8a7 7 0 0 0-14 0Z"/></svg>
+                    Peran Validator Aktif
+                </h2>
+                <div>Kaprodi</div>
+            </section>
+
+            <section class="dosen-request-list">
+                <h2>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7V3Zm7 1v5h5"/></svg>
+                    Daftar Permohonan
+                </h2>
+
+                {% for item in recent %}
+                <div class="dosen-request-card{% if loop.first %} is-active{% endif %}" data-request-index="{{ loop.index0 }}">
+                    <strong>{{ item.student.user.name }}</strong>
+                    <small>NIM {{ item.student.nim }} &middot; {{ item.course_name }}</small>
+                    <small>{{ item.destination_institution }} &middot; {{ item.status }}</small>
+                </div>
+                {% else %}
+                <div class="dosen-request-card is-empty">
+                    <strong>Belum ada data.</strong>
+                    <small>Daftar permohonan akan tampil setelah tersedia dari backend.</small>
+                </div>
+                {% endfor %}
+            </section>
+        </aside>
+
+        <article class="dosen-review-panel" aria-label="Panel review final surat">
+            <div class="dosen-panel-top" aria-hidden="true"></div>
+            <div class="dosen-panel-body">
+                <div class="dosen-review-note">
+                    <strong>Review Mode: Kaprodi</strong>
+                    <span>Kolom ini digunakan untuk melakukan validasi akhir terhadap surat observasi yang telah disetujui oleh Dosen. Seluruh data mahasiswa bersifat Read Only. Kaprodi hanya melakukan verifikasi akhir sebelum surat dinyatakan selesai.</span>
+                </div>
+
+                <form class="dosen-review-form">
+                    <section class="dosen-form-section">
+                        <h2>I. IDENTITAS PEMOHON & MAHASISWA</h2>
+                        <div class="dosen-field full">
+                            <label for="review-nim">NIM Pemohon <span>(Readonly)</span></label>
+                            <input id="review-nim" type="text" readonly data-field="nim">
+                        </div>
+                        <div class="dosen-field-grid two">
+                            <div class="dosen-field">
+                                <label for="review-name">Nama Lengkap Pemohon <span>(Readonly)</span></label>
+                                <input id="review-name" type="text" readonly data-field="name">
+                            </div>
+                            <div class="dosen-field">
+                                <label for="review-email">Email Pemohon <span>(Readonly)</span></label>
+                                <input id="review-email" type="email" readonly data-field="email">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="dosen-form-section">
+                        <h2>II. MITRA KERJA & INSTANSI TUJUAN</h2>
+                        <div class="dosen-field-grid two">
+                            <div class="dosen-field">
+                                <label for="review-date">Tanggal Rencana Observasi <span>(Readonly)</span></label>
+                                <input id="review-date" type="text" readonly data-field="date">
+                            </div>
+                            <div class="dosen-field">
+                                <label for="review-recipient">Nama Penerima Surat <span>(Readonly)</span></label>
+                                <input id="review-recipient" type="text" readonly data-field="recipient">
+                            </div>
+                        </div>
+                        <div class="dosen-field full">
+                            <label for="review-company">Nama Instansi Perusahaan <span>(Readonly)</span></label>
+                            <input id="review-company" type="text" readonly data-field="company">
+                        </div>
+                        <div class="dosen-field full">
+                            <label for="review-address">Alamat Lengkap Instansi <span>(Readonly)</span></label>
+                            <textarea id="review-address" readonly data-field="address"></textarea>
+                        </div>
+                    </section>
+
+                    <section class="dosen-form-section">
+                        <h2>III. DATA AKADEMIK & KELOMPOK KERJA</h2>
+                        <div class="dosen-field full">
+                            <label for="review-course">Nama Mata Kuliah <span>(Readonly)</span></label>
+                            <input id="review-course" type="text" readonly data-field="course">
+                        </div>
+                        <div class="dosen-field-grid two">
+                            <div class="dosen-field">
+                                <label for="review-lecturer-type">Jenis Dosen <span>(Readonly)</span></label>
+                                <input id="review-lecturer-type" type="text" readonly data-field="lecturerType">
+                            </div>
+                            <div class="dosen-field">
+                                <label for="review-internal">Dosen Pengampu Internal <span>(Readonly)</span></label>
+                                <input id="review-internal" type="text" readonly data-field="internalLecturer">
+                            </div>
+                        </div>
+                        <div class="dosen-field full">
+                            <label for="review-members">Anggota Kelompok <span>(Readonly)</span></label>
+                            <textarea id="review-members" class="members" readonly data-field="members"></textarea>
+                        </div>
+                    </section>
+
+                    <section class="dosen-decision-card">
+                        <h2>IV. LEMBAR KEPUTUSAN (KAPRODI)</h2>
+                        <div class="dosen-decision-label">
+                            <label for="review-note">Catatan Validasi Kaprodi <span>*</span></label>
+                            <small>(Validator: Kaprodi)</small>
+                        </div>
+                        <textarea id="review-note" placeholder="Tuliskan catatan validasi akhir atau alasan penolakan dokumen observasi ini di sini..."></textarea>
+                        <div class="dosen-decision-actions">
+                            <button class="approve" type="button">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                                Setujui Final
+                            </button>
+                            <button class="reject" type="button">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+                                Tolak Permohonan
+                            </button>
+                        </div>
+                        <div class="dosen-decision-foot">
+                            <span>* Catatan wajib diisi apabila Anda menolak permohonan.</span>
+                            <span>SINKRONISASI: BELUM TINJAU</span>
+                        </div>
+                    </section>
+                </form>
+            </div>
+        </article>
+
+        <div id="final-pdf-capture" aria-hidden="true" style="position:fixed; top:0; left:-10000px; pointer-events:none;">
+            <div id="final-pdf-preview" class="student-a4-preview" style="--student-letter-margin-top: {{ kop_setting.preview_top }}mm; --student-letter-margin-left: {{ kop_setting.left }}mm; --student-letter-margin-right: {{ kop_setting.right }}mm; --student-letter-margin-bottom: {{ kop_setting.bottom }}mm;{% if kop_setting.background_url %} --student-letter-bg: url('{{ kop_setting.background_url }}');{% endif %}">
+                <div class="student-letter-bg" aria-hidden="true"></div>
+                <article class="student-letter-layer">
+                    <section class="student-letter-content">
+                        <div class="student-letter-meta">
+                            <div>
+                                <span>Nomor:</span>
+                                <strong data-final-preview="documentNumber"></strong>
+                                <span>Perihal:</span>
+                                <strong>{{ document_subject() }}</strong>
+                            </div>
+                            <div>
+                                <span>Kepada Yth:</span>
+                                <strong data-final-preview="recipient"></strong>
+                                <strong data-final-preview="institution"></strong>
+                                <strong data-final-preview="address"></strong>
+                            </div>
+                        </div>
+
+                        <time class="student-letter-date" data-final-preview="date"></time>
+
+                        <div class="student-letter-body">
+                            <p>Dengan Hormat,</p>
+                            <p>Bersama dengan surat ini kami memberitahukan bahwa mahasiswa Fakultas Teknologi Informasi Program Studi <span data-final-preview="studyProgram"></span> Universitas Kristen Satya Wacana berikut ini:</p>
+                            <div class="student-letter-list" data-final-preview="members"></div>
+                            <p>Bahwa sebagai salah satu syarat untuk memenuhi sebagian tugas dari mata kuliah <span data-final-preview="course"></span>, maka melalui surat ini kami mohon kesediaan Bapak/Ibu untuk memberikan izin kepada mahasiswa yang bersangkutan di <span data-final-preview="institution"></span>.</p>
+                            <p>Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan diucapkan terima kasih.</p>
+                            <p>Salam,</p>
+                        </div>
+
+                        <div class="student-letter-signatures">
+                            <div>
+                                <span>Mengetahui</span>
+                                <strong data-final-preview="headOfProgram"></strong>
+                                <small>Kaprodi</small>
+                            </div>
+                            <div>
+                                <span>Menyetujui</span>
+                                <strong data-final-preview="lecturer"></strong>
+                                <small>Pengampu Mata Kuliah</small>
+                            </div>
+                        </div>
+                    </section>
+                </article>
+            </div>
+        </div>
+    </div>
+
+    <div class="dosen-history-overlay" data-history-overlay aria-hidden="true">
+        <div class="dosen-history-modal" role="dialog" aria-modal="true" aria-labelledby="kaprodi-history-title">
+            <button class="dosen-history-close" type="button" data-history-close aria-label="Tutup history">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+            </button>
+
+            <div class="dosen-history-tabs" role="tablist" aria-label="Filter history dokumen">
+                <button class="is-active" type="button" role="tab" aria-selected="true" data-history-tab="all" id="kaprodi-history-title">History</button>
+                <button type="button" role="tab" aria-selected="false" data-history-tab="rejected">Ditolak</button>
+                <button type="button" role="tab" aria-selected="false" data-history-tab="approved">Diterima</button>
+            </div>
+
+            <div class="dosen-history-list" data-history-list></div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/observation_pdf.js') }}"></script>
+<script>
+// Konfigurasi ini sama dengan CSS preview, tetapi dipakai dalam satuan mm oleh PDF.
+const finalPdfKopSetting = {
+    top: {{ kop_setting.top | tojson }},
+    right: {{ kop_setting.right | tojson }},
+    bottom: {{ kop_setting.bottom | tojson }},
+    left: {{ kop_setting.left | tojson }},
+    headerHeight: {{ kop_setting.header_clearance | tojson }},
+    backgroundUrl: {{ kop_setting.background_url | tojson }}
+};
+const finalPdfSubject = {{ document_subject() | tojson }};
+const kaprodiReviewRequests = [
+{% for item in recent %}
+    {
+        nim: {{ item.student.nim | tojson }},
+        name: {{ item.student.user.name | tojson }},
+        email: {{ item.student.user.email | tojson }},
+        date: {{ item.submission_date | tanggal_id | tojson }},
+        recipient: {{ item.topic | tojson }},
+        company: {{ item.destination_institution | tojson }},
+        address: {{ item.institution_address | tojson }},
+        course: {{ item.course_name | tojson }},
+        lecturerType: {{ ('Dosen Eksternal' if item.lecturer_type | lower == 'eksternal' else 'Dosen Internal') | tojson }},
+        internalLecturer: {{ (item.lecturer.user.name if item.lecturer_type | lower != 'eksternal' else '') | tojson }},
+        members: {{ item.group_members | tojson }},
+        documentNumber: {{ item.document_number | tojson }},
+        documentType: {{ item.document_type | tojson }},
+        studyProgram: {{ item.study_program.name | tojson }},
+        headOfProgram: {{ item.head_of_program_name | tojson }},
+        headOfProgramSignatureUrl: {{ item.head_of_program_signature_url | tojson }},
+        lecturer: {{ item.lecturer.user.name | tojson }},
+        lecturerSignatureUrl: {{ item.lecturer.signature_url | tojson }},
+        approveUrl: {{ url_for('kaprodi.setujui_surat', request_id=item.id) | tojson }},
+        uploadFinalPdfUrl: {{ url_for('kaprodi.upload_final_pdf', request_id=item.id) | tojson }},
+        rejectUrl: {{ url_for('kaprodi.tolak_surat', request_id=item.id) | tojson }}
+    }{{ "," if not loop.last }}
+{% endfor %}
+];
+const kaprodiHistoryItems = [
+{% for item in approval_history %}
+    {
+        doc: {{ ('DOC-' ~ item.created_at.year ~ '-' ~ '%03d'|format(item.id)) | tojson }},
+        name: {{ item.student.user.name | tojson }},
+        nim: {{ item.student.nim | tojson }},
+        course: {{ item.course_name | tojson }},
+        institution: {{ item.destination_institution | tojson }},
+        date: {{ item.created_at | tanggal_id | tojson }},
+        documentType: {{ item.document_type | tojson }},
+        reviewer: {{ head_of_program.user.name | tojson }},
+        role: "Kaprodi",
+        note: {{ item.rejection_note | tojson }},
+        status: {{ ('approved' if item.status_kaprodi | lower == 'disetujui' else 'rejected') | tojson }},
+        statusText: {{ ('Disetujui' if item.status_kaprodi | lower == 'disetujui' else 'Ditolak') | tojson }}
+    }{{ "," if not loop.last }}
+{% endfor %}
+];
+let activeReviewIndex = 0;
+
+function setReviewRequest(index) {
+    const data = kaprodiReviewRequests[index];
+    if (!data) {
+        document.querySelectorAll("[data-field]").forEach((field) => {
+            field.value = "";
+        });
+        return;
+    }
+    document.querySelectorAll("[data-field]").forEach((field) => {
+        field.value = field.dataset.field === "members" && Array.isArray(data.members)
+            ? data.members.map((member, index) => `${index + 1}. ${member.name || ""} (${member.nim || ""})`).join("\n\n")
+            : (data[field.dataset.field] || "");
+    });
+    activeReviewIndex = index;
+    document.querySelectorAll(".dosen-request-card[data-request-index]").forEach((card) => {
+        card.classList.toggle("is-active", Number(card.dataset.requestIndex) === index);
+    });
+}
+
+document.querySelectorAll(".dosen-request-card[data-request-index]").forEach((card) => {
+    card.addEventListener("click", () => setReviewRequest(Number(card.dataset.requestIndex)));
+});
+
+setReviewRequest(0);
+
+function setFinalPreviewValue(field, value) {
+    document.querySelectorAll(`[data-final-preview="${field}"]`).forEach((element) => {
+        element.textContent = value || "-";
+    });
+}
+
+function renderFinalPdfPreview(data) {
+    setFinalPreviewValue("documentNumber", data.documentNumber);
+    setFinalPreviewValue("recipient", data.recipient);
+    setFinalPreviewValue("institution", data.company);
+    setFinalPreviewValue("address", data.address);
+    setFinalPreviewValue("date", data.date);
+    setFinalPreviewValue("studyProgram", data.studyProgram);
+    setFinalPreviewValue("course", data.course);
+    setFinalPreviewValue("headOfProgram", data.headOfProgram);
+    setFinalPreviewValue("lecturer", data.lecturer);
+
+    const members = document.querySelector('[data-final-preview="members"]');
+    members.replaceChildren();
+    (Array.isArray(data.members) ? data.members : []).forEach((member, index) => {
+        const row = document.createElement("div");
+        row.className = "student-letter-member-row";
+        const number = document.createElement("span");
+        number.textContent = `${index + 1}.`;
+        const name = document.createElement("span");
+        name.textContent = member.name || "-";
+        const nim = document.createElement("span");
+        nim.textContent = member.nim || "-";
+        row.append(number, name, nim);
+        members.append(row);
+    });
+}
+
+/** Adapter Kaprodi: engine bersama hanya membangun Blob, upload tetap terpisah. */
+async function generateFinalPdf(data) {
+    return window.ObservationPdf.buildObservationPdf(data, {
+        kopSetting: finalPdfKopSetting,
+        subject: finalPdfSubject,
+        // Alur 2 (Kirim TTD Digital) wajib render gambar tanda tangan.
+        // Alur 1 (Cetak Hardfile) sengaja dibiarkan kosong (bukan bug).
+        digitalSignature: data.documentType === "TTD Digital"
+    });
+}
+
+async function uploadFinalPdf(data, pdfBlob) {
+    const megabyte = 1024 * 1024;
+    console.info(`[Final PDF] Blob hybrid yang dikirim: ${(pdfBlob.size / megabyte).toFixed(2)} MB (${pdfBlob.size} bytes)`);
+
+    const payload = new FormData();
+    payload.append("pdf", pdfBlob, "Surat_Observasi.pdf");
+
+    const response = await fetch(data.uploadFinalPdfUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "X-CSRFToken": "{{ csrf_token() }}" },
+        body: payload
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Gagal mengunggah PDF final.");
+    }
+}
+
+async function submitDecision(decision) {
+    const data = kaprodiReviewRequests[activeReviewIndex];
+    if (!data) {
+        return;
+    }
+
+    const note = document.getElementById("review-note").value;
+    const fieldName = decision === "approve" ? "approve-note" : "reject-note";
+    const endpoint = decision === "approve" ? data.approveUrl : data.rejectUrl;
+    const actionButtons = document.querySelectorAll(".dosen-decision-actions button");
+    actionButtons.forEach((button) => { button.disabled = true; });
+
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                "X-CSRFToken": "{{ csrf_token() }}"
+            },
+            body: new URLSearchParams({ [fieldName]: note })
+        });
+        if (!response.ok) {
+            throw new Error("Gagal menyimpan keputusan Kaprodi.");
+        }
+
+        if (decision === "approve") {
+            const pdfBlob = await generateFinalPdf(data);
+            await uploadFinalPdf(data, pdfBlob);
+        }
+        window.location.reload();
+    } catch (error) {
+        window.alert(error.message || "Keputusan tidak dapat diproses.");
+        actionButtons.forEach((button) => { button.disabled = false; });
+    }
+}
+
+document.querySelector(".dosen-decision-actions .approve").addEventListener("click", () => submitDecision("approve"));
+document.querySelector(".dosen-decision-actions .reject").addEventListener("click", () => submitDecision("reject"));
+
+const historyOverlay = document.querySelector("[data-history-overlay]");
+const historyList = document.querySelector("[data-history-list]");
+const historyTabs = document.querySelectorAll("[data-history-tab]");
+const menuToggle = document.querySelector("[data-menu-toggle]");
+const menuDropdown = document.querySelector("[data-menu-dropdown]");
+
+function renderHistory(filter = "all") {
+    const items = kaprodiHistoryItems.filter((item) => filter === "all" || item.status === filter);
+    if (!items.length) {
+        historyList.innerHTML = '<article class="dosen-history-item"><div><h3>Belum ada data.</h3><p>Riwayat approval akan tampil setelah tersedia dari backend.</p></div></article>';
+        return;
+    }
+    historyList.innerHTML = items.map((item) => `
+        <article class="dosen-history-item">
+            <div>
+                <span class="history-doc">${item.doc}</span>
+                ${item.documentType ? `<span class="history-document-type">${item.documentType === "Hard File" ? "Print Hard File" : item.documentType}</span>` : ""}
+                <h3>${item.name}</h3>
+                <p>NIM: ${item.nim}</p>
+                <p>${item.reviewer} (${item.role})</p>
+                ${item.note ? `<p>Catatan: ${item.note}</p>` : ""}
+            </div>
+            <div>
+                <span>Mata Kuliah</span>
+                <strong>${item.course}</strong>
+            </div>
+            <div>
+                <span>Instansi</span>
+                <strong>${item.institution}</strong>
+            </div>
+            <div>
+                <span>Tanggal</span>
+                <strong>${item.date}</strong>
+            </div>
+            <span class="history-result ${item.status}">${item.statusText}</span>
+        </article>
+    `).join("");
+}
+
+function openHistoryModal() {
+    renderHistory("all");
+    historyTabs.forEach((tab) => {
+        const isActive = tab.dataset.historyTab === "all";
+        tab.classList.toggle("is-active", isActive);
+        tab.setAttribute("aria-selected", String(isActive));
+    });
+    historyOverlay.classList.add("is-open");
+    historyOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("dosen-history-open");
+}
+
+function closeHistoryModal() {
+    historyOverlay.classList.remove("is-open");
+    historyOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("dosen-history-open");
+}
+
+function closeHeaderMenu() {
+    menuDropdown.classList.remove("is-open");
+    menuDropdown.setAttribute("aria-hidden", "true");
+    menuToggle.setAttribute("aria-expanded", "false");
+}
+
+function toggleHeaderMenu() {
+    const shouldOpen = !menuDropdown.classList.contains("is-open");
+    menuDropdown.classList.toggle("is-open", shouldOpen);
+    menuDropdown.setAttribute("aria-hidden", String(!shouldOpen));
+    menuToggle.setAttribute("aria-expanded", String(shouldOpen));
+}
+
+document.querySelector("[data-history-open]").addEventListener("click", openHistoryModal);
+document.querySelector("[data-history-close]").addEventListener("click", closeHistoryModal);
+menuToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleHeaderMenu();
+});
+
+menuDropdown.addEventListener("click", (event) => {
+    event.stopPropagation();
+});
+
+document.addEventListener("click", (event) => {
+    if (!event.target.closest(".dosen-header-menu")) {
+        closeHeaderMenu();
+    }
+});
+
+historyOverlay.addEventListener("click", (event) => {
+    if (event.target === historyOverlay) {
+        closeHistoryModal();
+    }
+});
+
+historyTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+        historyTabs.forEach((item) => {
+            const isActive = item === tab;
+            item.classList.toggle("is-active", isActive);
+            item.setAttribute("aria-selected", String(isActive));
+        });
+        renderHistory(tab.dataset.historyTab);
+    });
+});
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && historyOverlay.classList.contains("is-open")) {
+        closeHistoryModal();
+    }
+    if (event.key === "Escape") {
+        closeHeaderMenu();
+    }
+});
+</script>
+{% endblock %}

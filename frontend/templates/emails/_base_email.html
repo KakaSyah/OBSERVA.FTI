@@ -1,0 +1,52 @@
+{#
+app/templates/emails/_base_email.html
+
+Layout dasar seluruh email notifikasi (Tahap 9, FR-15/23/33/52). CSS
+SENGAJA ditulis inline per elemen (bukan <style> terpisah/CDN) karena
+banyak klien email (Gmail, Outlook) menghapus/mengabaikan <style> blok
+atau stylesheet eksternal — pola yang sama dengan alasan "CSS inline"
+pada pdf_service (Tahap 8) untuk keandalan (NFR Reliability).
+
+Template turunan mengisi block `heading` (judul singkat) dan `body`
+(isi pesan utama, boleh berupa beberapa <p>/tabel). `status_color` dapat
+di-override untuk aksen warna badge status pada tiap jenis notifikasi.
+#}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{{ config.APP_NAME }}{% endblock %}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#eef1f4; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef1f4; padding: 24px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:6px; overflow:hidden; max-width:600px; width:100%;">
+                    <tr>
+                        <td style="background-color:#1f3a5f; padding:20px 28px;">
+                            <span style="color:#ffffff; font-size:16px; font-weight:bold;">{{ config.APP_NAME }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:28px;">
+                            <h1 style="margin:0 0 16px 0; font-size:18px; color:{{ status_color | default('#1f3a5f') }};">
+                                {% block heading %}{% endblock %}
+                            </h1>
+                            <div style="font-size:14px; line-height:1.6; color:#2a2a2a;">
+                                {% block body %}{% endblock %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:16px 28px; background-color:#f5f6f8; font-size:11px; color:#888888;">
+                            Email ini dikirim otomatis oleh {{ config.APP_NAME }}. Mohon tidak membalas
+                            email ini. Untuk pertanyaan lebih lanjut, hubungi program studi Anda.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

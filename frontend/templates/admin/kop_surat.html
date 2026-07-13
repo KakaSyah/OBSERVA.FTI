@@ -1,0 +1,209 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Pengaturan KOP Surat - {{ config.APP_NAME }}{% endblock %}
+
+{% block body_class %} admin-page admin-dashboard-page{% endblock %}
+
+{% block main_class %} admin-dashboard-main{% endblock %}
+
+{% block content %}
+{% from "admin/_stage_sidebar.html" import admin_icon with context %}
+{% from "admin/_macros.html" import kop_document_preview %}
+{% set kop_form = forms.get("kop_surat") %}
+{% set current_kop = current_files.get("kop_surat") %}
+
+<div class="admin-stage">
+    {% with active_menu = "kop" %}
+        {% include "admin/_stage_sidebar.html" %}
+    {% endwith %}
+
+    <section class="admin-stage-content admin-kop-content" aria-label="Pengaturan KOP surat">
+        <div class="admin-kop-layout">
+            <section class="admin-kop-form-card" aria-labelledby="kop-form-title">
+                <h1 id="kop-form-title">Form Parameter KOP Surat</h1>
+
+                <form class="kop-config-form" method="POST" action="{{ url_for('admin.setting_margin') }}" data-kop-config-form novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id_background" value="{{ margin_setting.id_background or '' }}" data-kop-background-id>
+                    <h2>Atur Margin KOP (Milimeter)</h2>
+
+                    <div class="kop-margin-fields">
+                        <div class="kop-field">
+                            <div class="kop-field-head">
+                                <label for="margin_top">Margin Atas</label>
+                                <strong>{{ margin_setting.top }} mm</strong>
+                            </div>
+                            <div class="kop-number-control">
+                                <input id="margin_top" name="margin_top" type="number" min="0" step="1" value="{{ margin_setting.top }}" placeholder="0" inputmode="numeric">
+                                <span>mm</span>
+                            </div>
+                        </div>
+
+                        <div class="kop-field">
+                            <div class="kop-field-head">
+                                <label for="margin_left">Margin Kiri</label>
+                                <strong>{{ margin_setting.left }} mm</strong>
+                            </div>
+                            <div class="kop-number-control">
+                                <input id="margin_left" name="margin_left" type="number" min="0" step="1" value="{{ margin_setting.left }}" placeholder="0" inputmode="numeric">
+                                <span>mm</span>
+                            </div>
+                        </div>
+
+                        <div class="kop-field">
+                            <div class="kop-field-head">
+                                <label for="margin_bottom">Margin Bawah</label>
+                                <strong>{{ margin_setting.bottom }} mm</strong>
+                            </div>
+                            <div class="kop-number-control">
+                                <input id="margin_bottom" name="margin_bottom" type="number" min="0" step="1" value="{{ margin_setting.bottom }}" placeholder="0" inputmode="numeric">
+                                <span>mm</span>
+                            </div>
+                        </div>
+
+                        <div class="kop-field">
+                            <div class="kop-field-head">
+                                <label for="margin_right">Margin Kanan</label>
+                                <strong>{{ margin_setting.right }} mm</strong>
+                            </div>
+                            <div class="kop-number-control">
+                                <input id="margin_right" name="margin_right" type="number" min="0" step="1" value="{{ margin_setting.right }}" placeholder="0" inputmode="numeric">
+                                <span>mm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="kop-field">
+                        <div class="kop-field-head">
+                            <label for="header_clearance">Ruang Aman Kop</label>
+                            <strong>{{ margin_setting.header_clearance }} mm</strong>
+                        </div>
+                        <div class="kop-number-control">
+                            <input id="header_clearance" name="header_clearance" type="number" min="0" step="1" value="{{ margin_setting.header_clearance }}" placeholder="0" inputmode="numeric">
+                            <span>mm</span>
+                        </div>
+                        <small>Jarak minimum dari tepi atas kertas sampai boleh mulai menulis teks, agar tidak menabrak kop surat. Terpisah dari Margin Atas yang hanya memengaruhi tampilan preview.</small>
+                    </div>
+
+                    <div class="kop-upload-section">
+                        <h3>Background KOP</h3>
+                        <label class="kop-upload-drop" for="kop-background-file">
+                            <span class="upload-icon">{{ admin_icon('pencil') }}</span>
+                            <span>Upload Background</span>
+                            <small>PNG/JPG hingga batas ukuran sistem</small>
+                            <input id="kop-background-file" name="file" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" data-kop-background-input>
+                        </label>
+                        <p class="kop-current-file" data-kop-file-name>
+                            {% if current_kop %}
+                                Aktif: {{ current_kop.original_filename or current_kop.public_id }}
+                            {% else %}
+                                Belum ada file dipilih
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <button type="submit" class="kop-save-button">Simpan Perubahan</button>
+                </form>
+            </section>
+
+            <section class="admin-kop-preview" aria-label="Preview KOP surat">
+                {{ kop_document_preview(margin_setting, current_kop.secure_url if current_kop else none, true) }}
+            </section>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var backgroundInput = document.querySelector('[data-kop-background-input]');
+        var backgroundIdInput = document.querySelector('[data-kop-background-id]');
+        var fileNameLabel = document.querySelector('[data-kop-file-name]');
+        var previewPaper = document.querySelector('[data-kop-preview-paper]');
+        var marginInputs = {
+            top: document.querySelector('#margin_top'),
+            left: document.querySelector('#margin_left'),
+            right: document.querySelector('#margin_right'),
+            bottom: document.querySelector('#margin_bottom')
+        };
+
+        function applyPreviewMargins() {
+            if (!previewPaper) {
+                return;
+            }
+
+            Object.keys(marginInputs).forEach(function (key) {
+                var input = marginInputs[key];
+                if (!input || input.value === "" || Number(input.value) < 0) {
+                    return;
+                }
+                previewPaper.style.setProperty("--kop-margin-" + key, input.value + "mm");
+            });
+        }
+
+        function applyUploadedBackground(fileData) {
+            if (!fileNameLabel || !previewPaper || !fileData) {
+                return;
+            }
+
+            if (fileData.secure_url) {
+                fileNameLabel.textContent = "Aktif: " + (fileData.original_filename || fileData.public_id || "Background KOP");
+                previewPaper.style.setProperty("--kop-preview-bg", 'url("' + fileData.secure_url + '")');
+                previewPaper.classList.add("has-custom-bg");
+            }
+
+            if (backgroundIdInput && fileData.id) {
+                backgroundIdInput.value = fileData.id;
+            }
+        }
+
+        function uploadBackground() {
+            if (!backgroundInput || !backgroundInput.files.length || !fileNameLabel) {
+                return;
+            }
+
+            var file = backgroundInput.files[0];
+            var formData = new FormData();
+            formData.append("csrf_token", "{{ csrf_token() }}");
+            formData.append("file", file);
+            fileNameLabel.textContent = "Mengunggah: " + file.name;
+
+            fetch("{{ url_for('admin.kop_surat_upload', file_type='kop_surat') }}", {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json"
+                },
+                body: formData
+            })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        if (!response.ok || !data.ok) {
+                            throw new Error(data.message || "Upload background gagal.");
+                        }
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    applyUploadedBackground(data.file);
+                })
+                .catch(function (error) {
+                    fileNameLabel.textContent = error.message;
+                });
+        }
+
+        if (backgroundInput) {
+            backgroundInput.addEventListener("change", uploadBackground);
+        }
+
+        Object.keys(marginInputs).forEach(function (key) {
+            var input = marginInputs[key];
+            if (input) {
+                input.addEventListener("input", applyPreviewMargins);
+            }
+        });
+    });
+</script>
+{% endblock %}

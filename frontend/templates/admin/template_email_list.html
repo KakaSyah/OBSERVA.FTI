@@ -1,0 +1,38 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Template Email — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-1">Template Email</h1>
+<p class="text-muted small mb-4">
+    Kelola subjek &amp; isi HTML notifikasi email ke mahasiswa (FR-44). Jika belum pernah
+    diubah, sistem memakai template HTML bawaan yang sudah dirancang tim pengembang.
+</p>
+
+<div class="row g-3">
+    {% for type_key, label in types.items() %}
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <h2 class="h6">{{ label }}</h2>
+                {% if overrides.get(type_key) %}
+                    <span class="badge bg-info text-dark align-self-start mb-2">Sudah dikustomisasi</span>
+                    <p class="small text-muted mb-2">Subjek saat ini: "{{ overrides[type_key].subject }}"</p>
+                {% else %}
+                    <span class="badge bg-secondary align-self-start mb-2">Memakai template bawaan</span>
+                {% endif %}
+                <div class="mt-auto d-flex gap-2">
+                    <a href="{{ url_for('admin.template_email_edit', type_key=type_key) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                    {% if overrides.get(type_key) %}
+                    <form method="POST" action="{{ url_for('admin.template_email_reset', type_key=type_key) }}" onsubmit="return confirm('Kembalikan ke template bawaan?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Kembalikan ke Bawaan</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

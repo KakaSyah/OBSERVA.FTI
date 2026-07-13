@@ -1,0 +1,191 @@
+{% extends "layouts/base.html" %}
+{% import "admin/_macros.html" as m %}
+
+{% block title %}Riwayat Pengajuan — {{ config.APP_NAME }}{% endblock %}
+
+{% block body_class %} admin-page admin-dashboard-page{% endblock %}
+
+{% block main_class %} admin-dashboard-main{% endblock %}
+
+{% block content %}
+{% from "admin/_stage_sidebar.html" import admin_icon with context %}
+
+<div class="admin-stage admin-history-stage">
+    {% with active_menu = "history" %}
+        {% include "admin/_stage_sidebar.html" %}
+    {% endwith %}
+
+    <section class="admin-stage-content admin-history-content admin-submission-history-content" aria-label="Riwayat Pengajuan">
+        <div class="admin-stage-stats admin-history-stats">
+            <article class="admin-stage-stat is-approved">
+                <div class="stat-icon">{{ admin_icon("check") }}</div>
+                <div>
+                    <span class="stat-label">Disetujui</span>
+                    <strong>{{ summary.approved }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-rejected">
+                <div class="stat-icon">{{ admin_icon("x") }}</div>
+                <div>
+                    <span class="stat-label">Ditolak</span>
+                    <strong>{{ summary.rejected }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-pending">
+                <div class="stat-icon">{{ admin_icon("clock") }}</div>
+                <div>
+                    <span class="stat-label">Menunggu</span>
+                    <strong>{{ summary.pending }}</strong>
+                </div>
+            </article>
+            <button class="history-bulk-delete" type="button" data-history-delete>Hapus</button>
+        </div>
+
+        <form method="GET" class="history-toolbar" role="search">
+            {% if status %}
+                <input type="hidden" name="status" value="{{ status }}">
+            {% endif %}
+            <label class="history-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m16.5 16.5 4 4"></path>
+                </svg>
+                <span class="visually-hidden">Cari dokumen</span>
+                <input type="search" name="q" value="{{ search }}" placeholder="Cari nama, NIM, atau ID...">
+            </label>
+
+            <div class="history-filter-pills" aria-label="Filter status">
+                <a class="history-pill {{ 'active' if not status else '' }}" href="{{ url_for('admin.riwayat_pengajuan', q=search) if search else url_for('admin.riwayat_pengajuan') }}">Semua Dokumen</a>
+                <a class="history-pill {{ 'active' if status == 'approved' else '' }}" href="{{ url_for('admin.riwayat_pengajuan', status='approved', q=search) if search else url_for('admin.riwayat_pengajuan', status='approved') }}">Disetujui</a>
+                <a class="history-pill {{ 'active' if status == 'rejected' else '' }}" href="{{ url_for('admin.riwayat_pengajuan', status='rejected', q=search) if search else url_for('admin.riwayat_pengajuan', status='rejected') }}">Ditolak</a>
+                <a class="history-pill {{ 'active' if status == 'pending' else '' }}" href="{{ url_for('admin.riwayat_pengajuan', status='pending', q=search) if search else url_for('admin.riwayat_pengajuan', status='pending') }}">Menunggu</a>
+            </div>
+        </form>
+
+        {% if items %}
+        <div class="history-list">
+            {% for request in items %}
+            {% set status_lower = request.status | lower %}
+            {% set history_state = 'rejected' if 'ditolak' in status_lower else ('pending' if 'menunggu' in status_lower or 'draft' in status_lower else 'approved') %}
+            <article class="history-card history-card-{{ history_state }}">
+                <input class="history-card-select" type="checkbox" value="{{ request.id }}" aria-label="Pilih riwayat pengajuan {{ request.document_number or 'belum digenerate' }}">
+                <div class="history-card-top">
+                    <div>
+                        <span class="history-id-row"><span>Nomor Dokumen</span><strong>{{ request.document_number or 'Belum digenerate' }}</strong>{% if request.document_type %}<small class="history-document-type">{{ 'Print Hard File' if request.document_type == 'Hard File' else request.document_type }}</small>{% endif %}</span>
+                        <h2>{{ request.student.user.name }}</h2>
+                        <p><span>NIM</span> {{ request.student.nim }}</p>
+                        <p><span>Prodi</span> {{ request.study_program.name }}</p>
+                        <p><span>Dosen</span> {{ request.lecturer.user.name }}</p>
+                        <p><span>Kaprodi</span> {{ request.head_of_program_name }}</p>
+                        <p><span>Kelompok</span>
+                            {% if request.group_members %}
+                                {% for member in request.group_members %}{{ loop.index }}. {{ member.name }} ({{ member.nim }}){% if not loop.last %}<br>{% endif %}{% endfor %}
+                            {% else %}Individu{% endif %}
+                        </p>
+                    </div>
+                    <span class="history-status history-status-{{ history_state }}">
+                        {{ "Ditolak" if history_state == "rejected" else ("Menunggu" if history_state == "pending" else "Disetujui") }}
+                    </span>
+                </div>
+                <div class="history-card-divider"></div>
+                <div class="history-course">
+                    <span>Mata Kuliah</span>
+                    <strong>{{ request.course_name }}</strong>
+                    <span>Instansi</span>
+                    <strong>{{ request.destination_institution }}</strong>
+                    <span>Tanggal</span>
+                    <strong>{{ request.created_at | tanggal_id }}</strong>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        {{ m.pagination_nav(pagination, 'admin.riwayat_pengajuan', pagination_args) }}
+        {% else %}
+        <div class="history-empty">
+            <p>Belum ada riwayat pengajuan yang tercatat.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<dialog class="history-delete-dialog" data-history-delete-dialog aria-labelledby="history-delete-title">
+    <h2 id="history-delete-title">Hapus Riwayat Pengajuan</h2>
+    <p data-history-delete-count>Anda akan menghapus 0 riwayat pengajuan.</p>
+    <p>Data yang dihapus tidak dapat dikembalikan.</p>
+    <div class="history-delete-actions">
+        <button type="button" data-history-delete-cancel>Batal</button>
+        <button type="button" data-history-delete-confirm>Hapus</button>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        var deleteButton = document.querySelector('[data-history-delete]');
+        var dialog = document.querySelector('[data-history-delete-dialog]');
+        var cancelButton = document.querySelector('[data-history-delete-cancel]');
+        var confirmButton = document.querySelector('[data-history-delete-confirm]');
+        var countLabel = document.querySelector('[data-history-delete-count]');
+        var endpoint = {{ url_for('admin.riwayat_pengajuan_bulk_delete') | tojson }};
+
+        function selectedCards() {
+            return Array.prototype.slice.call(document.querySelectorAll('.history-card-select:checked'));
+        }
+
+        function updateSummary(summary) {
+            document.querySelector('.admin-stage-stat.is-approved strong').textContent = summary.approved;
+            document.querySelector('.admin-stage-stat.is-rejected strong').textContent = summary.rejected;
+            document.querySelector('.admin-stage-stat.is-pending strong').textContent = summary.pending;
+        }
+
+        deleteButton.addEventListener('click', function () {
+            var selected = selectedCards();
+            if (!selected.length) {
+                window.alert('Pilih minimal satu riwayat pengajuan.');
+                return;
+            }
+            countLabel.textContent = 'Anda akan menghapus ' + selected.length + ' riwayat pengajuan.';
+            dialog.showModal();
+        });
+
+        cancelButton.addEventListener('click', function () {
+            dialog.close();
+        });
+
+        confirmButton.addEventListener('click', function () {
+            var selected = selectedCards();
+            fetch(endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': {{ csrf_token() | tojson }}
+                },
+                body: JSON.stringify({ ids: selected.map(function (checkbox) { return checkbox.value; }) })
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data.ok) {
+                        throw new Error(data.message || 'Gagal menghapus riwayat pengajuan.');
+                    }
+                    selected.forEach(function (checkbox) {
+                        checkbox.closest('.history-card').remove();
+                    });
+                    updateSummary(data.summary);
+                    dialog.close();
+                    window.alert(data.message);
+                    if (!document.querySelector('.history-card')) {
+                        window.location.reload();
+                    }
+                })
+                .catch(function (error) {
+                    window.alert(error.message || 'Gagal menghapus riwayat pengajuan.');
+                });
+        });
+    }());
+</script>
+{% endblock %}

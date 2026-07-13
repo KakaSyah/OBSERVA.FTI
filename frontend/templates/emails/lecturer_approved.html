@@ -1,0 +1,23 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}Pengajuan Disetujui Dosen — {{ config.APP_NAME }}{% endblock %}
+{% set status_color = "#0d6efd" %}
+
+{% block heading %}Pengajuan Anda Disetujui Dosen Pembimbing{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px 0;">Halo {{ observation_request.student.user.name }},</p>
+<p style="margin:0 0 12px 0;">
+    Kabar baik! Dosen pembimbing Anda telah <strong>menyetujui</strong> pengajuan surat izin
+    observasi berikut, dan kini diteruskan untuk persetujuan akhir Ketua Program Studi (Kaprodi):
+</p>
+{% include "emails/_detail_table.html" %}
+{% if approval_note %}
+<p style="margin:0 0 12px 0; background-color:#f5f6f8; padding:10px 12px; border-radius:4px;">
+    <strong>Catatan Dosen:</strong> {{ approval_note }}
+</p>
+{% endif %}
+<p style="margin:0;">
+    Anda akan menerima email berikutnya begitu Kaprodi memberikan keputusan akhir. Anda juga dapat
+    memantau statusnya kapan saja melalui halaman riwayat surat pada {{ config.APP_NAME }}.
+</p>
+{% endblock %}

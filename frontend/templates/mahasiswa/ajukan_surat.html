@@ -1,0 +1,627 @@
+{% extends "layouts/kiosk_base.html" %}
+{% from "admin/_macros.html" import document_subject %}
+
+{% block title %}Ajukan Surat Observasi - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('mahasiswa.ajukan_surat') }}" novalidate id="ajukanSuratForm" class="student-request-shell">
+    {{ form.hidden_tag() }}
+    <input id="studentGroupMembers" name="anggota_kelompok" type="hidden" value="[]">
+
+    <aside class="student-request-sidebar" aria-label="Form pengajuan surat observasi">
+        <header class="student-sidebar-brand">
+            <img src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="{{ config.APP_NAME }}">
+            <span>
+                <span class="student-brand-title">OBSERVA<span>.FTI</span></span>
+                <span class="student-brand-subtitle">Digital Document System</span>
+            </span>
+        </header>
+
+        <div class="student-form-scroll">
+            <section class="student-form-card">
+                <h2>Data Pemohon</h2>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.nim.id }}">NIM Pemohon*</label>
+                    {{ form.nim(class="student-control" + (" is-invalid" if form.nim.errors else ""), placeholder="isi sesuai nim anda", autofocus=true, data_preview_source="nim") }}
+                    {% for error in form.nim.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="studentNamePreview">Nama Lengkap Pemohon</label>
+                    <input class="student-control" id="studentNamePreview" name="student_name" type="text" placeholder="nama sesuai KTM" autocomplete="off" data-preview-source="studentName">
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="studentEmailPreview">Email Pemohon</label>
+                    <input class="student-control" id="studentEmailPreview" name="student_email" type="email" placeholder="Email Pemohon" autocomplete="off" data-preview-source="email">
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.submission_date.id }}">Tanggal Rencana Observasi</label>
+                    {{ form.submission_date(class="student-control" + (" is-invalid" if form.submission_date.errors else ""), data_preview_source="date") }}
+                    {% for error in form.submission_date.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="student-form-card">
+                <h2>Tujuan Observasi</h2>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.topic.id }}">Nama Penerima Surat</label>
+                    {{ form.topic(class="student-control" + (" is-invalid" if form.topic.errors else ""), placeholder="Nama Penerima Surat", data_preview_source="recipient") }}
+                    {% for error in form.topic.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.destination_institution.id }}">Nama Instansi / Perusahaan</label>
+                    {{ form.destination_institution(class="student-control" + (" is-invalid" if form.destination_institution.errors else ""), placeholder="Nama Instansi / Perusahaan", data_preview_source="institution") }}
+                    {% for error in form.destination_institution.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.institution_address.id }}">Alamat Lengkap</label>
+                    {{ form.institution_address(class="student-control student-textarea" + (" is-invalid" if form.institution_address.errors else ""), rows="2", placeholder="Alamat Lokasi", data_preview_source="address") }}
+                    {% for error in form.institution_address.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="student-form-card">
+                <h2>Data Akademik</h2>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.course_name.id }}">Nama Mata Kuliah</label>
+                    {{ form.course_name(class="student-control" + (" is-invalid" if form.course_name.errors else ""), placeholder="Pilih matkul", data_preview_source="course") }}
+                    {% for error in form.course_name.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="lecturerTypeSelect">Jenis Dosen</label>
+                    <select class="student-control student-select" id="lecturerTypeSelect" name="jenis_dosen" required>
+                        <option value="">Pilih Jenis Dosen</option>
+                        <option value="Internal">Internal</option>
+                        <option value="Eksternal">Eksternal</option>
+                    </select>
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.lecturer_id.id }}">Dosen</label>
+                    {{ form.lecturer_id(class="student-control student-select" + (" is-invalid" if form.lecturer_id.errors else ""), id="lecturerSelect", data_preview_source="lecturer") }}
+                    {% for error in form.lecturer_id.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="student-field">
+                    <label class="student-label" for="{{ form.study_program_id.id }}">Pilih Prodi</label>
+                    {{ form.study_program_id(class="student-control student-select" + (" is-invalid" if form.study_program_id.errors else ""), id="studyProgramSelect", data_preview_source="studyProgram") }}
+                    {% for error in form.study_program_id.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="student-form-card">
+                <h2>Anggota Kelompok</h2>
+
+                <div class="student-members-list" id="studentMembersList">
+                    <div class="student-member-box" data-member-item>
+                        <div class="student-member-head">
+                            <span>Anggota 1</span>
+                        </div>
+                        <label for="memberNamePreview1">Nama Anggota 1</label>
+                        <input id="memberNamePreview1" type="text" placeholder="Nama Mahasiswa" autocomplete="off" data-member-field="name">
+                        <label for="memberNimPreview1">NIM</label>
+                        <input id="memberNimPreview1" type="text" placeholder="NIM" autocomplete="off" data-member-field="nim">
+                    </div>
+                </div>
+
+                <button type="button" class="student-add-member" id="addStudentMember">+ Tambah Anggota</button>
+            </section>
+        </div>
+
+        <footer class="student-sidebar-footer">
+            <p>
+                &copy; 2026 OBSERVA.FTI<br>
+                Fakultas Teknologi Informasi<br>
+                <span>Digital Document Management System</span>
+            </p>
+            <div class="student-actions">
+                <button type="submit" name="action" value="print" class="student-action-button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V4h10v4"></path><path d="M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M7 14h10v6H7z"></path></svg>
+                    Cetak Hardfile
+                </button>
+                <button type="submit" name="action" value="kirim" class="student-action-button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13"></path><path d="m22 2-7 20-4-9-9-4z"></path></svg>
+                    Kirim TTD Digital
+                </button>
+            </div>
+        </footer>
+    </aside>
+
+    <main class="student-preview-panel" aria-label="Live Preview Surat">
+        <section class="student-preview-sticky">
+            <div id="preview-surat" class="student-a4-preview" style="--student-letter-margin-top: {{ kop_setting.preview_top }}mm; --student-letter-margin-left: {{ kop_setting.left }}mm; --student-letter-margin-right: {{ kop_setting.right }}mm; --student-letter-margin-bottom: {{ kop_setting.bottom }}mm;{% if kop_setting.background_url %} --student-letter-bg: url('{{ kop_setting.background_url }}');{% endif %}">
+                <div class="student-letter-bg" aria-hidden="true"></div>
+                <article class="student-letter-layer">
+                    <section class="student-letter-content">
+                        <div class="student-letter-meta">
+                            <div>
+                                <span>Nomor:</span>
+                                <strong data-preview="documentNumber">{{ candidate_document_number }}</strong>
+                                <span>Perihal:</span>
+                                <strong>{{ document_subject() }}</strong>
+                            </div>
+                            <div>
+                                <span>Kepada Yth:</span>
+                                <strong data-preview="recipient">Belum ada data.</strong>
+                                <strong data-preview="institution">Belum ada data.</strong>
+                                <strong data-preview="address">Belum ada data.</strong>
+                            </div>
+                        </div>
+
+                        <time class="student-letter-date" data-preview="date">Belum ada data.</time>
+
+                        <div class="student-letter-body">
+                            <p>Dengan Hormat,</p>
+                            <p>Bersama dengan surat ini kami memberitahukan bahwa mahasiswa Fakultas Teknologi Informasi Program Studi <span data-preview="studyProgram">Belum ada data.</span> Universitas Kristen Satya Wacana berikut ini:</p>
+                            <div class="student-letter-list" data-preview="members">Belum ada anggota kelompok.</div>
+                            <p>Bahwa sebagai salah satu syarat untuk memenuhi sebagian tugas dari mata kuliah <span data-preview="course">Belum ada data.</span>, maka melalui surat ini kami mohon kesediaan Bapak/Ibu untuk memberikan izin kepada mahasiswa yang bersangkutan di <span data-preview="institution">Belum ada data.</span>.</p>
+                            <p>Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan diucapkan terima kasih.</p>
+                            <p>Salam,</p>
+                        </div>
+
+                        <div class="student-letter-signatures">
+                            <div>
+                                <span>Mengetahui</span>
+                                <strong data-preview="headOfProgram">Belum ada data Kaprodi</strong>
+                                <small>Kaprodi</small>
+                            </div>
+                            <div>
+                                <span>Menyetujui</span>
+                                <strong data-preview="lecturer">Belum ada data.</strong>
+                                <small>Pengampu Mata Kuliah</small>
+                            </div>
+                        </div>
+                    </section>
+                </article>
+            </div>
+        </section>
+    </main>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/observation_pdf.js') }}"></script>
+<script>
+    (function () {
+        var lecturers = {{ lecturers_json | tojson }};
+        var headsOfProgram = {{ heads_of_program_json | tojson }};
+        var form = document.getElementById("ajukanSuratForm");
+        var prodiSelect = document.getElementById("studyProgramSelect");
+        var lecturerSelect = document.getElementById("lecturerSelect");
+        var lecturerTypeSelect = document.getElementById("lecturerTypeSelect");
+        var membersList = document.getElementById("studentMembersList");
+        var addMemberButton = document.getElementById("addStudentMember");
+        var memberCount = 1;
+        var maxGroupMembers = 10;
+
+        var previewDefaults = {
+            nim: "Belum ada data.",
+            studentName: "Belum ada data.",
+            email: "Belum ada data.",
+            date: "Belum ada data.",
+            recipient: "Belum ada data.",
+            institution: "Belum ada data.",
+            address: "Belum ada data.",
+            course: "Belum ada data.",
+            lecturer: "Belum ada data.",
+            studyProgram: "Belum ada data.",
+            letterSubject: {{ document_subject() | tojson }},
+            headOfProgram: "Belum ada data Kaprodi",
+            documentNumber: {{ candidate_document_number | tojson }}
+        };
+
+        function sourceValue(element) {
+            if (!element) {
+                return "";
+            }
+
+            if (element.tagName === "SELECT") {
+                return element.options[element.selectedIndex] ? element.options[element.selectedIndex].text.trim() : "";
+            }
+
+            return element.value.trim();
+        }
+
+        function cleanChoiceLabel(value) {
+            return (value || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+        }
+
+        function formatDate(value) {
+            if (!value) {
+                return "Belum ada data.";
+            }
+
+            var parts = value.split("-");
+            if (parts.length !== 3) {
+                return value;
+            }
+
+            var months = [
+                "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+            ];
+            var monthIndex = parseInt(parts[1], 10) - 1;
+            return parseInt(parts[2], 10) + " " + (months[monthIndex] || parts[1]) + " " + parts[0];
+        }
+
+        function collectMembers() {
+            var members = [];
+            membersList.querySelectorAll("[data-member-item]").forEach(function (item) {
+                var nameInput = item.querySelector('[data-member-field="name"]');
+                var nimInput = item.querySelector('[data-member-field="nim"]');
+                var name = nameInput ? nameInput.value.trim() : "";
+                var nim = nimInput ? nimInput.value.trim() : "";
+                if (name || nim) {
+                    members.push({
+                        name: name || previewDefaults.studentName,
+                        nim: nim || previewDefaults.nim
+                    });
+                }
+            });
+            return members;
+        }
+
+        function getPreviewData() {
+            var data = Object.assign({}, previewDefaults);
+
+            form.querySelectorAll("[data-preview-source]").forEach(function (element) {
+                var key = element.getAttribute("data-preview-source");
+                var value = sourceValue(element);
+
+                if (key === "date") {
+                    data[key] = formatDate(value);
+                } else if (key === "lecturer" || key === "studyProgram") {
+                    data[key] = cleanChoiceLabel(value) || previewDefaults[key];
+                } else {
+                    data[key] = value || previewDefaults[key];
+                }
+            });
+
+            data.members = collectMembers();
+            data.headOfProgram = headsOfProgram[String(prodiSelect.value)] || previewDefaults.headOfProgram;
+            return data;
+        }
+
+        function setPreviewValue(key, value) {
+            document.querySelectorAll('[data-preview="' + key + '"]').forEach(function (target) {
+                if (key !== "members") {
+                    target.textContent = value;
+                }
+            });
+        }
+
+        function renderMemberList(data) {
+            document.querySelectorAll('[data-preview="members"]').forEach(function (target) {
+                target.innerHTML = "";
+                if (!data.members.length) {
+                    target.textContent = "Belum ada anggota kelompok.";
+                    return;
+                }
+
+                data.members.forEach(function (member, index) {
+                    var row = document.createElement("span");
+                    row.className = "student-letter-member-row";
+
+                    var number = document.createElement("span");
+                    number.textContent = (index + 1) + ".";
+
+                    var name = document.createElement("span");
+                    name.textContent = member.name;
+
+                    var nim = document.createElement("span");
+                    nim.textContent = member.nim;
+
+                    row.appendChild(number);
+                    row.appendChild(name);
+                    row.appendChild(nim);
+                    target.appendChild(row);
+                });
+            });
+        }
+
+        function renderPreview() {
+            var data = getPreviewData();
+            Object.keys(data).forEach(function (key) {
+                if (key !== "members") {
+                    setPreviewValue(key, data[key]);
+                }
+            });
+            renderMemberList(data);
+            document.getElementById("studentGroupMembers").value = JSON.stringify(data.members);
+        }
+
+        function renderLecturerOptions() {
+            var prodiId = parseInt(prodiSelect.value, 10);
+            var lecturerType = lecturerTypeSelect.value;
+            lecturerSelect.innerHTML = "";
+
+            if (!lecturerType) {
+                var typePlaceholder = document.createElement("option");
+                typePlaceholder.value = "";
+                typePlaceholder.textContent = "Pilih jenis dosen terlebih dahulu";
+                lecturerSelect.appendChild(typePlaceholder);
+                lecturerSelect.disabled = true;
+                renderPreview();
+                return;
+            }
+
+            lecturerSelect.disabled = false;
+
+            var lecturerPlaceholder = document.createElement("option");
+            lecturerPlaceholder.value = "";
+            lecturerPlaceholder.textContent = "Pilih Dosen";
+            lecturerSelect.appendChild(lecturerPlaceholder);
+
+            var matches = lecturers.filter(function (l) {
+                return l.study_program_id === prodiId && l.lecturer_type === lecturerType;
+            });
+
+            if (matches.length === 0) {
+                var opt = document.createElement("option");
+                opt.value = "";
+                opt.textContent = "Belum ada dosen " + lecturerType.toLowerCase() + " pada prodi ini";
+                lecturerSelect.appendChild(opt);
+                return;
+            }
+
+            matches.forEach(function (l) {
+                var opt = document.createElement("option");
+                opt.value = l.id;
+                opt.textContent = l.label;
+                lecturerSelect.appendChild(opt);
+            });
+
+            renderPreview();
+        }
+
+        renderLecturerOptions();
+        lecturerTypeSelect.addEventListener("change", renderLecturerOptions);
+        prodiSelect.addEventListener("change", function () {
+            lecturerTypeSelect.value = "";
+            renderLecturerOptions();
+        });
+
+        function renumberMembers() {
+            membersList.querySelectorAll("[data-member-item]").forEach(function (item, index) {
+                var number = index + 1;
+                var title = item.querySelector(".student-member-head span");
+                var labels = item.querySelectorAll("label");
+                var inputs = item.querySelectorAll("input");
+
+                title.textContent = "Anggota " + number;
+                labels[0].textContent = "Nama Anggota " + number;
+                labels[0].setAttribute("for", "memberNamePreview" + number);
+                inputs[0].id = "memberNamePreview" + number;
+                labels[1].setAttribute("for", "memberNimPreview" + number);
+                inputs[1].id = "memberNimPreview" + number;
+            });
+            renderPreview();
+            updateAddMemberButton();
+        }
+
+        function groupMemberCount() {
+            return membersList.querySelectorAll("[data-member-item]").length;
+        }
+
+        function updateAddMemberButton() {
+            var hasReachedLimit = groupMemberCount() >= maxGroupMembers;
+            addMemberButton.disabled = hasReachedLimit;
+            addMemberButton.title = hasReachedLimit ? "Maksimal anggota kelompok adalah 10 orang." : "";
+        }
+
+        function bindMemberInputs(item) {
+            item.querySelectorAll("input").forEach(function (input) {
+                input.addEventListener("input", renderPreview);
+                input.addEventListener("change", renderPreview);
+            });
+        }
+
+        function createMemberItem() {
+            memberCount += 1;
+
+            var item = document.createElement("div");
+            item.className = "student-member-box";
+            item.setAttribute("data-member-item", "");
+            item.innerHTML =
+                '<div class="student-member-head">' +
+                    '<span>Anggota ' + memberCount + '</span>' +
+                    '<button type="button" class="student-remove-member">Hapus</button>' +
+                '</div>' +
+                '<label for="memberNamePreview' + memberCount + '">Nama Anggota ' + memberCount + '</label>' +
+                '<input id="memberNamePreview' + memberCount + '" type="text" placeholder="Nama Mahasiswa" autocomplete="off" data-member-field="name">' +
+                '<label for="memberNimPreview' + memberCount + '">NIM</label>' +
+                '<input id="memberNimPreview' + memberCount + '" type="text" placeholder="NIM" autocomplete="off" data-member-field="nim">';
+
+            item.querySelector(".student-remove-member").addEventListener("click", function () {
+                item.remove();
+                renumberMembers();
+            });
+            bindMemberInputs(item);
+
+            return item;
+        }
+
+        addMemberButton.addEventListener("click", function () {
+            if (groupMemberCount() >= maxGroupMembers) {
+                window.alert("Maksimal anggota kelompok adalah 10 orang.");
+                return;
+            }
+            membersList.appendChild(createMemberItem());
+            renumberMembers();
+            if (groupMemberCount() === maxGroupMembers) {
+                window.alert("Maksimal anggota kelompok adalah 10 orang.");
+            }
+        });
+
+        form.querySelectorAll("[data-preview-source]").forEach(function (element) {
+            element.addEventListener("input", renderPreview);
+            element.addEventListener("change", renderPreview);
+        });
+
+        var hardFileButton = form.querySelector('button[name="action"][value="print"]');
+        var printFinalized = false;
+        var submissionUrl = form.getAttribute("action") || window.location.href;
+
+        function logPrintRequest(stage, url, payload) {
+            console.debug("[Cetak Hard File]", stage, {
+                url: url,
+                method: "POST",
+                payload: Array.from(payload.entries())
+            });
+        }
+
+        function validSubmissionUrl() {
+            return typeof submissionUrl === "string" && submissionUrl &&
+                submissionUrl.indexOf("[object") === -1;
+        }
+
+        function finalizeHardFilePrint(requestId) {
+            if (printFinalized) {
+                return;
+            }
+            printFinalized = true;
+
+            var completionData = new FormData();
+            completionData.append("action", "complete_print");
+            completionData.append("request_id", requestId);
+            var csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput) {
+                completionData.append("csrf_token", csrfInput.value);
+            }
+
+            if (!validSubmissionUrl()) {
+                printFinalized = false;
+                hardFileButton.disabled = false;
+                window.alert("Endpoint cetak hard file tidak valid.");
+                return;
+            }
+
+            logPrintRequest("finalisasi", submissionUrl, completionData);
+
+            fetch(submissionUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                body: completionData
+            })
+                .then(function (response) {
+                    console.debug("[Cetak Hard File] respons finalisasi", response.status, response.url);
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data.ok) {
+                        throw new Error(data.message || "Gagal menyelesaikan cetak hard file.");
+                    }
+                    previewDefaults.documentNumber = data.document_number;
+                    setPreviewValue("documentNumber", data.document_number);
+                    // Alur 1 (Cetak Hardfile) selesai tanpa error setelah PDF diunduh ->
+                    // arahkan otomatis ke Welcome Page Mahasiswa. Tidak dijalankan di
+                    // branch .catch() di bawah, sehingga jika finalisasi gagal mahasiswa
+                    // tetap berada di halaman pengajuan dengan pesan error yang sudah ada.
+                    window.location.href = {{ url_for('mahasiswa.welcome') | tojson }};
+                })
+                .catch(function (error) {
+                    printFinalized = false;
+                    hardFileButton.disabled = false;
+                    window.alert(error.message || "Gagal menyelesaikan cetak hard file.");
+                });
+        }
+
+        function downloadPreviewPdf() {
+            if (!window.ObservationPdf) {
+                return Promise.reject(new Error("Pembuat PDF tidak tersedia. Muat ulang halaman lalu coba kembali."));
+            }
+            var data = getPreviewData();
+            data.company = data.institution;
+            return window.ObservationPdf.buildObservationPdf(data, {
+                subject: previewDefaults.letterSubject,
+                kopSetting: {
+                    top: {{ kop_setting.top | tojson }},
+                    right: {{ kop_setting.right | tojson }},
+                    bottom: {{ kop_setting.bottom | tojson }},
+                    left: {{ kop_setting.left | tojson }},
+                    headerHeight: {{ kop_setting.header_clearance | tojson }},
+                    backgroundUrl: {{ kop_setting.background_url | tojson }}
+                }
+            }).then(function (pdfBlob) {
+                var link = document.createElement("a");
+                var objectUrl = URL.createObjectURL(pdfBlob);
+                link.href = objectUrl;
+                link.download = "Surat_Observasi.pdf";
+                link.click();
+                URL.revokeObjectURL(objectUrl);
+            });
+        }
+
+        hardFileButton.addEventListener("click", function (event) {
+            event.preventDefault();
+            renderPreview();
+            if (!form.reportValidity()) {
+                return;
+            }
+
+            if (!validSubmissionUrl()) {
+                window.alert("Endpoint cetak hard file tidak valid.");
+                return;
+            }
+
+            hardFileButton.disabled = true;
+            var printData = new FormData(form);
+            printData.set("action", "print");
+            logPrintRequest("menyiapkan cetak", submissionUrl, printData);
+            fetch(submissionUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                body: printData
+            })
+                .then(function (response) {
+                    console.debug("[Cetak Hard File] respons persiapan", response.status, response.url);
+                    if (!response.ok) {
+                        throw new Error("Pengajuan belum dapat dicetak. Periksa kembali data form.");
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data.ok || !data.request_id) {
+                        throw new Error(data.message || "Pengajuan belum dapat dicetak. Periksa kembali data form.");
+                    }
+                    return downloadPreviewPdf().then(function () {
+                        finalizeHardFilePrint(data.request_id);
+                    });
+                })
+                .catch(function (error) {
+                    hardFileButton.disabled = false;
+                    window.alert(error.message || "Gagal menyiapkan cetak hard file.");
+                });
+        });
+
+        membersList.querySelectorAll("[data-member-item]").forEach(bindMemberInputs);
+        renderPreview();
+        updateAddMemberButton();
+    })();
+</script>
+{% endblock %}

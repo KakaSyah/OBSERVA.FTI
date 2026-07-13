@@ -1,0 +1,38 @@
+{% extends "layouts/base.html" %}
+{% import "admin/_macros.html" as m %}
+
+{% block title %}{{ "Tambah" if mode == "create" else "Edit" }} Template Surat — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 mb-4">{{ "Tambah Template Surat" if mode == "create" else "Edit Template Surat" }}</h1>
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+                    {{ m.render_field(form.name) }}
+                    {{ m.render_field(form.file) }}
+                    {% if mode == "edit" and template.cloudinary_file %}
+                    <p class="text-muted small mt-n2 mb-3">
+                        Berkas saat ini: <a href="{{ template.cloudinary_file.secure_url }}" target="_blank" rel="noopener">{{ template.cloudinary_file.original_filename }}</a>.
+                        Kosongkan jika tidak ingin mengganti berkas.
+                    </p>
+                    {% endif %}
+                    <div class="row">
+                        <div class="col-md-6">{{ m.render_field(form.margin_top) }}</div>
+                        <div class="col-md-6">{{ m.render_field(form.margin_bottom) }}</div>
+                        <div class="col-md-6">{{ m.render_field(form.margin_left) }}</div>
+                        <div class="col-md-6">{{ m.render_field(form.margin_right) }}</div>
+                    </div>
+                    {{ m.render_field(form.is_active) }}
+                    <div class="d-flex gap-2 mt-4">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('admin.template_surat_list') }}" class="btn btn-outline-secondary">Batal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

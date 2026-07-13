@@ -1,0 +1,22 @@
+<article class="academic-signature-card" data-signature-card data-signature-role="{{ account_role }}" data-signature-id="{{ account.id }}" data-signature-name="{{ account.nama }}" data-signature-username="{{ account.username }}" data-signature-nidn="{{ account.nidn }}" data-signature-lecturer-type="{{ account.jenis_dosen or 'Internal' }}" data-signature-program-id="{{ account.id_program_studi }}" data-signature-program="{{ account.nama_program_studi }}" data-signature-status="{{ 'Aktif' if account.status_aktif else 'Nonaktif' }}" data-signature-url="{{ account.secure_url or '' }}" data-signature-delete-url="{{ url_for('admin.akademik_pengguna_account_delete', role=account_role, account_id=account.id) }}">
+    <div class="signature-card-top">
+        <span class="signature-major">{{ account.nama_program_studi }}</span>
+        {% if account.status_aktif %}
+            <span class="signature-status">Aktif</span>
+        {% else %}
+            <span class="signature-status is-muted">Nonaktif</span>
+        {% endif %}
+    </div>
+    <h3>{{ account.nama }}</h3>
+    <p>NIDN/NIP: {{ account.nidn }} // Program Studi: {{ account.nama_program_studi }}</p>
+    <div class="signature-card-divider"></div>
+    <div class="signature-card-actions">
+        {% if account.secure_url %}
+            <img class="signature-scribble" src="{{ account.secure_url }}" alt="Tanda tangan {{ account.nama }}">
+        {% else %}
+            <div class="signature-scribble" aria-hidden="true"></div>
+        {% endif %}
+        <button class="signature-edit-button" type="button" data-signature-edit>Edit</button>
+        <button class="signature-delete-button" type="button" data-signature-delete>Hapus</button>
+    </div>
+</article>

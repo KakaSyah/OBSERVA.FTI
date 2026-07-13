@@ -1,0 +1,22 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}Surat Izin Observasi Resmi Terbit — {{ config.APP_NAME }}{% endblock %}
+{% set status_color = "#198754" %}
+
+{% block heading %}Surat Izin Observasi Anda Telah Terbit{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px 0;">Halo {{ observation_request.student.user.name }},</p>
+<p style="margin:0 0 12px 0;">
+    Selamat! Pengajuan surat izin observasi Anda telah <strong>disetujui Ketua Program Studi</strong>
+    dan surat resmi telah diterbitkan dengan nomor:
+</p>
+<p style="margin:0 0 16px 0; font-size:16px; font-weight:bold; text-align:center; background-color:#eaf7ee; padding:12px; border-radius:4px; color:#198754;">
+    {{ letter_number.formatted_number }}
+</p>
+{% include "emails/_detail_table.html" %}
+<p style="margin:0 0 12px 0;">
+    PDF surat resmi terlampir pada email ini. Anda juga dapat mengunduhnya kapan saja melalui
+    halaman riwayat surat pada {{ config.APP_NAME }}.
+</p>
+<p style="margin:0;">Terima kasih telah menggunakan {{ config.APP_NAME }}.</p>
+{% endblock %}

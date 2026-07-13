@@ -1,0 +1,50 @@
+{% extends "layouts/kiosk_base.html" %}
+
+{% block title %}Selamat Datang — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="welcome-shell">
+    <div class="welcome-card">
+        <img
+            src="{{ url_for('static', filename='img/logo-k2i.png') }}"
+            alt="{{ config.APP_NAME }}"
+            class="welcome-badge"
+            id="welcomeLogo"
+            title=""
+        >
+        <h1>Selamat Datang di Layanan Form Digital</h1>
+        <p>{{ config.APP_NAME }} — ajukan surat izin observasi Anda secara mandiri melalui form di bawah ini.</p>
+
+        <a href="{{ url_for('mahasiswa.ajukan_surat') }}" class="btn btn-obs-orange">Mulai Isi Form</a>
+
+        <form id="kioskLogoutForm" action="{{ url_for('auth.logout') }}" method="POST" class="d-none">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Logout tersembunyi: klik logo bulat beberapa kali berturut-turut
+    // (dalam 2 detik) untuk keluar dari sesi kiosk. Sengaja tidak ada
+    // tombol logout yang terlihat di halaman ini (permintaan produk:
+    // sesi kiosk mahasiswa tidak menampilkan opsi logout secara terbuka).
+    (function () {
+        var logo = document.getElementById("welcomeLogo");
+        var logoutForm = document.getElementById("kioskLogoutForm");
+        var REQUIRED_CLICKS = 5;
+        var WINDOW_MS = 2000;
+        var clicks = [];
+
+        logo.addEventListener("click", function () {
+            var now = Date.now();
+            clicks.push(now);
+            clicks = clicks.filter(function (t) { return now - t <= WINDOW_MS; });
+            if (clicks.length >= REQUIRED_CLICKS) {
+                logoutForm.submit();
+            }
+        });
+    })();
+</script>
+{% endblock %}

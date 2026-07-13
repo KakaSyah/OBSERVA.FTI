@@ -1,0 +1,126 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Detail Surat Masuk — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <a href="{{ url_for('dosen.surat_masuk') }}" class="small d-inline-block mb-1">&laquo; Kembali ke surat masuk</a>
+        <h1 class="h4 mb-0">{{ observation_request.topic }}</h1>
+    </div>
+    <span class="badge bg-{{ observation_request.status | status_badge }} fs-6">{{ observation_request.status }}</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h6 mb-3">Detail Pengajuan</h2>
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4">Mahasiswa</dt>
+                    <dd class="col-sm-8">
+                        {{ observation_request.student.user.name }}
+                        (NIM {{ observation_request.student.nim }}, Semester {{ observation_request.student.semester }})
+                    </dd>
+
+                    <dt class="col-sm-4">Program Studi</dt>
+                    <dd class="col-sm-8">{{ observation_request.study_program.name }}</dd>
+
+                    <dt class="col-sm-4">Mata Kuliah</dt>
+                    <dd class="col-sm-8">{{ observation_request.course_name }}</dd>
+
+                    <dt class="col-sm-4">Instansi Tujuan</dt>
+                    <dd class="col-sm-8">{{ observation_request.destination_institution }}</dd>
+
+                    <dt class="col-sm-4">Alamat Instansi</dt>
+                    <dd class="col-sm-8">{{ observation_request.institution_address }}</dd>
+
+                    <dt class="col-sm-4">Tanggal Pengajuan</dt>
+                    <dd class="col-sm-8">{{ observation_request.submission_date | tanggal_id }}</dd>
+
+                    {% if observation_request.is_rejected and observation_request.rejection_note %}
+                    <dt class="col-sm-4">Catatan Penolakan</dt>
+                    <dd class="col-sm-8 text-danger">{{ observation_request.rejection_note }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 mb-3">Riwayat Persetujuan</h2>
+                {% if approval_logs %}
+                <ul class="list-group list-group-flush">
+                    {% for log in approval_logs %}
+                    <li class="list-group-item px-0">
+                        <div class="d-flex justify-content-between">
+                            <span>
+                                <strong>{{ log.actor.name }}</strong>
+                                ({{ log.role_at_approval | capitalize }}) —
+                                {% if log.action == "approve" %}
+                                    <span class="text-success">Menyetujui</span>
+                                {% else %}
+                                    <span class="text-danger">Menolak</span>
+                                {% endif %}
+                            </span>
+                            <span class="text-muted small">{{ log.created_at | tanggal_id }}</span>
+                        </div>
+                        {% if log.note %}
+                            <div class="text-muted small mt-1">Catatan: {{ log.note }}</div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">Belum ada riwayat persetujuan.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 mb-3">Aksi</h2>
+
+                {% if observation_request.is_waiting_lecturer %}
+                    <form method="POST" action="{{ url_for('dosen.setujui_surat', request_id=observation_request.id) }}"
+                          class="mb-3" onsubmit="return confirm('Setujui pengajuan ini dan teruskan ke Kaprodi?');">
+                        {{ approve_form.hidden_tag() }}
+                        <div class="mb-2">
+                            {{ approve_form.note.label(class="form-label small") }}
+                            {{ approve_form.note(class="form-control form-control-sm" + (" is-invalid" if approve_form.note.errors else ""), rows=2) }}
+                            {% for error in approve_form.note.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Setujui</button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('dosen.tolak_surat', request_id=observation_request.id) }}"
+                          onsubmit="return confirm('Tolak pengajuan ini? Mahasiswa perlu mengajukan surat baru.');">
+                        {{ reject_form.hidden_tag() }}
+                        <div class="mb-2">
+                            {{ reject_form.note.label(class="form-label small") }}
+                            {{ reject_form.note(class="form-control form-control-sm" + (" is-invalid" if reject_form.note.errors else ""), rows=2) }}
+                            {% for error in reject_form.note.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-outline-danger w-100">Tolak</button>
+                    </form>
+                {% elif observation_request.is_rejected %}
+                    <p class="text-muted small mb-0">
+                        Anda sudah menolak pengajuan ini. Tidak ada tindakan lebih lanjut yang diperlukan.
+                    </p>
+                {% else %}
+                    <p class="text-muted small mb-0">
+                        Anda sudah menyetujui pengajuan ini. Statusnya kini menunggu persetujuan Kaprodi
+                        program studi {{ observation_request.study_program.name }}.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

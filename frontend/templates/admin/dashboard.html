@@ -1,0 +1,90 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard Admin - {{ config.APP_NAME }}{% endblock %}
+
+{% block body_class %} admin-page admin-dashboard-page{% endblock %}
+
+{% block main_class %} admin-dashboard-main{% endblock %}
+
+{% block content %}
+{% from "admin/_stage_sidebar.html" import admin_icon with context %}
+{% from "admin/_macros.html" import kop_document_preview %}
+
+<div class="admin-stage admin-dashboard-stage">
+    {% with active_menu = "dashboard" %}
+        {% include "admin/_stage_sidebar.html" %}
+    {% endwith %}
+
+    <section class="admin-stage-content admin-dashboard-content" aria-label="Ringkasan dashboard">
+        <div class="admin-stage-stats">
+            <article class="admin-stage-stat is-approved">
+                <div class="stat-icon">{{ admin_icon("check") }}</div>
+                <div>
+                    <span class="stat-label">Disetujui</span>
+                    <strong>{{ total_finished }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-rejected">
+                <div class="stat-icon">{{ admin_icon("x") }}</div>
+                <div>
+                    <span class="stat-label">Ditolak</span>
+                    <strong>{{ total_rejected }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-pending">
+                <div class="stat-icon">{{ admin_icon("clock") }}</div>
+                <div>
+                    <span class="stat-label">Menunggu</span>
+                    <strong>{{ total_pending }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-lecturer">
+                <div class="stat-icon">{{ admin_icon("team") }}</div>
+                <div>
+                    <span class="stat-label">Total Dosen</span>
+                    <strong>{{ total_lecturers }}</strong>
+                </div>
+            </article>
+
+            <article class="admin-stage-stat is-lecturer">
+                <div class="stat-icon">{{ admin_icon("team") }}</div>
+                <div>
+                    <span class="stat-label">Total Kaprodi</span>
+                    <strong>{{ total_head_of_programs }}</strong>
+                </div>
+            </article>
+        </div>
+
+        <div class="admin-stage-layout">
+            <section class="admin-margin-card" aria-labelledby="margin-title">
+                <h2 id="margin-title">Margin Berkas</h2>
+                <dl>
+                    <div>
+                        <dt>Margin Atas</dt>
+                        <dd>{{ margin_setting.top }} mm</dd>
+                    </div>
+                    <div>
+                        <dt>Margin Kiri</dt>
+                        <dd>{{ margin_setting.left }} mm</dd>
+                    </div>
+                    <div>
+                        <dt>Margin Bawah</dt>
+                        <dd>{{ margin_setting.bottom }} mm</dd>
+                    </div>
+                    <div>
+                        <dt>Margin Kanan</dt>
+                        <dd>{{ margin_setting.right }} mm</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-letter-preview" aria-label="Preview surat">
+                {{ kop_document_preview(margin_setting, margin_setting.background_url) }}
+            </section>
+        </div>
+    </section>
+</div>
+{% endblock %}

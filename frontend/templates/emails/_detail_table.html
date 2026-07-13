@@ -1,0 +1,28 @@
+{#
+app/templates/emails/_detail_table.html
+
+Tabel ringkasan pengajuan, dipakai di seluruh email notifikasi (Tahap 9)
+agar mahasiswa langsung tahu surat mana yang dimaksud tanpa perlu login.
+#}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px; color:#2a2a2a; margin: 12px 0 16px 0;">
+    <tr>
+        <td style="padding:3px 0; width:150px; color:#555;">Topik Observasi</td>
+        <td style="padding:3px 0;">: {{ observation_request.topic }}</td>
+    </tr>
+    <tr>
+        <td style="padding:3px 0; color:#555;">Instansi Tujuan</td>
+        <td style="padding:3px 0;">: {{ observation_request.destination_institution }}</td>
+    </tr>
+    <tr>
+        <td style="padding:3px 0; color:#555;">Dosen Pembimbing</td>
+        <td style="padding:3px 0;">: {{ observation_request.lecturer.user.name }}</td>
+    </tr>
+    <tr>
+        <td style="padding:3px 0; color:#555;">Program Studi</td>
+        <td style="padding:3px 0;">: {{ observation_request.study_program.name }}</td>
+    </tr>
+    <tr>
+        <td style="padding:3px 0; color:#555;">Status Saat Ini</td>
+        <td style="padding:3px 0;"><strong>{{ observation_request.status }}</strong></td>
+    </tr>
+</table>

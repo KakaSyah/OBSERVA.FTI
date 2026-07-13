@@ -1,0 +1,821 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Kelola Akademik & Pengguna - {{ config.APP_NAME }}{% endblock %}
+
+{% block body_class %} admin-page admin-dashboard-page{% endblock %}
+
+{% block main_class %} admin-dashboard-main{% endblock %}
+
+{% block content %}
+{% from "admin/_stage_sidebar.html" import admin_icon with context %}
+
+<div class="admin-stage">
+    {% with active_menu = "academic" %}
+        {% include "admin/_stage_sidebar.html" %}
+    {% endwith %}
+
+    <section class="admin-stage-content admin-academic-content" aria-label="Kelola akademik dan pengguna">
+        <header class="admin-academic-header">
+            <div>
+                <h1>Kelola Staf Dosen, Tanda Tangan, &amp; Program Studi FTI</h1>
+                <p>Penambahan dosen otomatis meregistrasikan akun baru dalam database pengguna dengan kata sandi login.</p>
+            </div>
+            <button type="button" class="admin-orange-action" data-lecturer-modal-open>
+                <span>+</span>
+                Tambah Dosen &amp; Pengguna Baru
+            </button>
+        </header>
+
+        <div class="admin-academic-grid">
+            <section class="admin-academic-panel admin-signature-panel" aria-labelledby="signature-title">
+                <section aria-labelledby="signature-title">
+                    <div class="admin-section-title">
+                        {{ admin_icon("pencil") }}
+                        <h2 id="signature-title">Daftar Berkas Tanda Tangan Dosen</h2>
+                    </div>
+
+                    <div class="academic-signature-list">
+                        {% if lecturers %}
+                            {% for lecturer in lecturers %}
+                                {% with account=lecturer, account_role="dosen" %}
+                                    {% include "admin/_academic_signature_card.html" %}
+                                {% endwith %}
+                            {% endfor %}
+                        {% else %}
+                            <article class="academic-signature-card is-empty">
+                                <h3>Belum ada dosen</h3>
+                                <p>Tambahkan dosen untuk menampilkan daftar tanda tangan di panel ini.</p>
+                            </article>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <section aria-labelledby="signature-head-title">
+                    <div class="admin-section-title">
+                        {{ admin_icon("pencil") }}
+                        <h2 id="signature-head-title">Daftar Berkas Tanda Tangan Kaprodi</h2>
+                    </div>
+
+                    <div class="academic-signature-list">
+                        {% if heads_of_program %}
+                            {% for head in heads_of_program %}
+                                {% with account=head, account_role="kaprodi" %}
+                                    {% include "admin/_academic_signature_card.html" %}
+                                {% endwith %}
+                            {% endfor %}
+                        {% else %}
+                            <article class="academic-signature-card is-empty">
+                                <h3>Belum ada kaprodi</h3>
+                                <p>Kaprodi akan tampil setelah data tersedia di database.</p>
+                            </article>
+                        {% endif %}
+                    </div>
+                </section>
+            </section>
+
+            <aside class="admin-academic-side">
+                <section class="admin-academic-panel prodi-registration-panel" aria-labelledby="prodi-title">
+                    <div class="admin-section-title">
+                        {{ admin_icon("cap") }}
+                        <h2 id="prodi-title">Registrasi Prodi &amp; Kaprodi</h2>
+                    </div>
+
+                    <div class="academic-prodi-section">
+                        <h3>Registrasi Program Studi</h3>
+                        <p class="admin-panel-copy">Daftarkan Program Studi baru yang akan digunakan oleh dosen dan kaprodi.</p>
+
+                        <form class="academic-prodi-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" data-prodi-form>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="form_name" value="program_create">
+
+                            <label for="study-program-preview">Nama Program Studi</label>
+                            <input id="study-program-preview" name="nama_program_studi" type="text" required>
+
+                            <button type="submit">
+                                <span>+</span>
+                                Tambah Program Studi
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="academic-prodi-section">
+                        <h3>Registrasi Kaprodi</h3>
+
+                        <form class="academic-prodi-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" data-kaprodi-form>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="form_name" value="program_create">
+                            <input type="hidden" name="nama_program_studi" data-kaprodi-program-name>
+
+                            <label for="kaprodi-program-preview">Program Studi</label>
+                            <select id="kaprodi-program-preview" name="id_program_studi" required data-kaprodi-program-select>
+                                <option value="">Pilih Program Studi</option>
+                                {% for program in study_programs %}
+                                    <option value="{{ program.id_program_studi }}">{{ program.nama_program_studi }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <label for="head-program-preview">Kepala Program Studi</label>
+                            <select id="head-program-preview" name="id_dosen" required>
+                                <option value="">Pilih dosen</option>
+                                {% for candidate in lecturer_candidates %}
+                                    <option value="{{ candidate.id_dosen }}">{{ candidate.nama }} - {{ candidate.nidn }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <button type="submit">
+                                Simpan Kaprodi
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="registered-prodi">
+                        <h3>Daftar Prodi Terdaftar</h3>
+                        <ul data-registered-prodi-list>
+                            {% if study_programs %}
+                                {% for program in study_programs %}
+                                <li>
+                                    <div class="registered-prodi-main">
+                                        <span>{{ program.nama_program_studi }}</span>
+                                        <form method="POST" action="{{ url_for('admin.akademik_pengguna_program_delete', program_id=program.id_program_studi) }}" data-confirm-form>
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit">Hapus</button>
+                                        </form>
+                                    </div>
+                                    <small>{{ program.nama_kaprodi or "Belum ada kaprodi" }}</small>
+                                </li>
+                                {% endfor %}
+                            {% else %}
+                                <li>
+                                    <span>Belum ada data.</span>
+                                    <small>Program studi akan tampil setelah tersimpan di database.</small>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="admin-academic-panel role-panel" aria-labelledby="role-title">
+                    <div class="admin-section-title">
+                        {{ admin_icon("team") }}
+                        <h2 id="role-title">Kelola Akun Akademik</h2>
+                    </div>
+                    <p class="admin-panel-copy">Kelola akun dosen dan kaprodi yang telah terdaftar.</p>
+                    <div class="role-panel-actions">
+                        <button type="button" class="admin-role-primary-button" data-academic-account-open data-account-tab="dosen">Kelola Akun Akademik</button>
+                    </div>
+                </section>
+
+                <section class="admin-academic-panel kiosk-panel" aria-labelledby="kiosk-title">
+                    <div class="admin-section-title">
+                        {{ admin_icon("users") }}
+                        <h2 id="kiosk-title">User &amp; Password Kiosk Mahasiswa</h2>
+                    </div>
+                    <p class="admin-panel-copy">
+                        Atur kredensial login bersama untuk halaman mahasiswa.
+                    </p>
+
+                    <form class="academic-kiosk-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="form_name" value="kiosk_account">
+
+                        <label for="kiosk-name">Nama Akun</label>
+                        <input id="kiosk-name" name="nama" type="text" value="{{ kiosk_account.nama if kiosk_account else '' }}" required>
+
+                        <label for="kiosk-username">User / Kode Login</label>
+                        <input id="kiosk-username" name="username" type="text" value="{{ kiosk_account.username if kiosk_account else '' }}" required>
+
+                        <label for="kiosk-password">Password Baru</label>
+                        <input id="kiosk-password" name="password" type="password" {% if not kiosk_account %}required{% endif %}>
+
+                        <label class="kiosk-toggle">
+                            <input type="checkbox" name="status_aktif" value="1" {% if not kiosk_account or kiosk_account.status_aktif %}checked{% endif %}>
+                            <span>Akun Aktif</span>
+                        </label>
+
+                        <button type="submit">
+                            {{ "Simpan Akun Kiosk" if kiosk_account else "Buat Akun Kiosk" }}
+                        </button>
+                    </form>
+                </section>
+            </aside>
+        </div>
+    </section>
+</div>
+
+<div class="signature-file-overlay" data-signature-edit-overlay aria-hidden="true">
+    <div class="signature-file-panel" role="dialog" aria-modal="true" aria-labelledby="signature-edit-title">
+        <button class="academic-account-close" type="button" data-signature-edit-close aria-label="Tutup edit berkas tanda tangan">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+
+        <div class="academic-account-heading">
+            {{ admin_icon("pencil") }}
+            <div>
+                <h2 id="signature-edit-title">Edit Berkas Tanda Tangan</h2>
+                <p>Perbarui akun akademik dan referensi file tanda tangan.</p>
+            </div>
+        </div>
+
+        <form class="signature-file-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" enctype="multipart/form-data" data-signature-edit-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="form_name" value="academic_update">
+            <input type="hidden" name="role" data-signature-edit-role>
+            <input type="hidden" name="account_id" data-signature-edit-id>
+            <input type="hidden" name="jenis_dosen" data-signature-edit-lecturer-type value="Internal">
+
+            <div class="admin-lecturer-field">
+                <label for="signature-edit-name">Nama</label>
+                <input id="signature-edit-name" name="nama" type="text" data-signature-edit-name required>
+            </div>
+            <div class="admin-lecturer-field">
+                <label for="signature-edit-username">Username</label>
+                <input id="signature-edit-username" name="username" type="text" data-signature-edit-username required>
+            </div>
+            <div class="admin-lecturer-field">
+                <label for="signature-edit-nidn">NIDN / NIP</label>
+                <input id="signature-edit-nidn" name="nidn" type="text" data-signature-edit-nidn required>
+            </div>
+            <div class="admin-lecturer-field">
+                <label for="signature-edit-program">Program Studi</label>
+                <select id="signature-edit-program" name="id_program_studi" data-signature-edit-program required>
+                    {% for program in study_programs %}
+                        <option value="{{ program.id_program_studi }}">{{ program.nama_program_studi }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="admin-lecturer-field">
+                <label for="signature-edit-password">Password Baru</label>
+                <input id="signature-edit-password" name="password" type="password">
+            </div>
+            <label class="admin-lecturer-toggle">
+                <input type="checkbox" name="status_aktif" value="1" data-signature-edit-status>
+                <span>Status Aktif</span>
+            </label>
+
+            <div class="signature-preview-block">
+                <span>Preview Tanda Tangan</span>
+                <div class="signature-preview-box">
+                    <img class="signature-preview-image" data-signature-edit-preview alt="">
+                </div>
+                <label class="signature-file-change" for="signature-edit-file">Pilih File Tanda Tangan</label>
+                <input id="signature-edit-file" name="signature_file" type="file" accept="image/png">
+            </div>
+
+            <div class="admin-lecturer-actions">
+                <button class="admin-lecturer-cancel" type="button" data-signature-edit-close>Batal</button>
+                <button class="admin-lecturer-submit" type="submit">Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="signature-file-overlay" data-signature-delete-overlay aria-hidden="true">
+    <div class="signature-delete-panel" role="alertdialog" aria-modal="true" aria-labelledby="signature-delete-title">
+        <h2 id="signature-delete-title">Hapus Akun Akademik</h2>
+
+        <dl class="signature-delete-detail">
+            <div>
+                <dt>Nama:</dt>
+                <dd data-signature-delete-name>Belum ada data.</dd>
+            </div>
+            <div>
+                <dt>Program Studi:</dt>
+                <dd data-signature-delete-program>Belum ada data.</dd>
+            </div>
+        </dl>
+
+        <p>Apakah Anda yakin ingin menghapus akun ini?</p>
+
+        <form class="signature-delete-actions" method="POST" data-signature-delete-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="button" data-signature-delete-close>Batal</button>
+            <button type="submit">Hapus</button>
+        </form>
+    </div>
+</div>
+
+<div class="admin-lecturer-modal-overlay" data-lecturer-modal aria-hidden="true">
+    <div class="admin-lecturer-modal" role="dialog" aria-modal="true" aria-labelledby="lecturer-modal-title">
+        <button class="admin-lecturer-close" type="button" data-lecturer-modal-close aria-label="Tutup modal">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+
+        <div class="admin-lecturer-modal-title">
+            {{ admin_icon("cap") }}
+            <h2 id="lecturer-modal-title">Tambah Data Dosen</h2>
+        </div>
+
+        <form class="admin-lecturer-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="form_name" value="academic_create">
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-nidn">NIDN / NIP</label>
+                <input id="lecturer-nidn" name="nidn" type="text" required>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-name">Nama Dosen &amp; Gelar</label>
+                <input id="lecturer-name" name="nama" type="text" required>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-username">Username</label>
+                <input id="lecturer-username" name="username" type="text" required>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-program">Program Studi</label>
+                <select id="lecturer-program" name="id_program_studi" required>
+                    <option value="">Pilih Prodi</option>
+                    {% for program in study_programs %}
+                        <option value="{{ program.id_program_studi }}">{{ program.nama_program_studi }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-role">Role</label>
+                <select id="lecturer-role" name="role" required>
+                    <option value="">Pilih role</option>
+                    <option value="dosen">Dosen</option>
+                    <option value="kaprodi">Kaprodi</option>
+                </select>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-signature">Upload Tanda Tangan (PNG)</label>
+                <input id="lecturer-signature" name="signature_file" type="file" accept="image/png">
+            </div>
+
+            <div class="admin-lecturer-field" data-create-lecturer-type-field hidden>
+                <label for="lecturer-type">Jenis Dosen</label>
+                <select id="lecturer-type" name="jenis_dosen" required disabled>
+                    <option value="Internal" selected>Internal</option>
+                    <option value="Eksternal">Eksternal</option>
+                </select>
+            </div>
+
+            <div class="admin-lecturer-field">
+                <label for="lecturer-password">Password</label>
+                <input id="lecturer-password" name="password" type="password" required>
+            </div>
+
+            <label class="admin-lecturer-toggle">
+                <input type="checkbox" name="status_aktif" value="1" checked>
+                <span>Status Aktif</span>
+            </label>
+
+            <div class="admin-lecturer-actions">
+                <button class="admin-lecturer-cancel" type="button" data-lecturer-modal-close>Batal</button>
+                <button class="admin-lecturer-submit" type="submit">
+                    <span>+</span>
+                    Buat Akun Baru
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="academic-account-overlay" data-academic-account-overlay aria-hidden="true">
+    <div class="academic-account-panel" role="dialog" aria-modal="true" aria-labelledby="academic-account-title">
+        <button class="academic-account-close" type="button" data-academic-account-close aria-label="Tutup overlay">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+
+        <div class="academic-account-heading">
+            {{ admin_icon("team") }}
+            <div>
+                <h2 id="academic-account-title">Kelola Akun Akademik</h2>
+                <p>Kelola akun dosen dan kaprodi.</p>
+            </div>
+        </div>
+
+        <div class="academic-account-tabs" role="tablist" aria-label="Role akun akademik">
+            <button type="button" class="is-active" role="tab" aria-selected="true" data-academic-tab="dosen">Dosen</button>
+            <button type="button" role="tab" aria-selected="false" data-academic-tab="kaprodi">Kaprodi</button>
+        </div>
+
+        {% for panel_role, items in {"dosen": lecturers, "kaprodi": heads_of_program}.items() %}
+        <div class="academic-account-list {% if panel_role == 'dosen' %}is-active{% endif %}" data-academic-panel="{{ panel_role }}">
+            <div class="academic-account-row academic-account-header" aria-hidden="true">
+                <span>Nama</span>
+                <span>NIDN</span>
+                <span>Program Studi</span>
+                <span>Status</span>
+                <span></span>
+            </div>
+
+            {% if items %}
+                {% for account in items %}
+                <article class="academic-account-row" data-account-name="{{ account.nama }}" data-account-id="{{ account.id }}" data-account-role="{{ panel_role }}" data-account-username="{{ account.username }}" data-account-nidn="{{ account.nidn }}" data-account-lecturer-type="{{ account.jenis_dosen or 'Internal' }}" data-account-program="{{ account.id_program_studi }}" data-account-program-name="{{ account.nama_program_studi }}" data-account-status="{{ 'Aktif' if account.status_aktif else 'Nonaktif' }}" data-account-delete-url="{{ url_for('admin.akademik_pengguna_account_delete', role=panel_role, account_id=account.id) }}">
+                    <span class="account-name">{{ account.nama }}</span>
+                    <span>{{ account.nidn }}</span>
+                    <span>{{ account.nama_program_studi }}</span>
+                    <span>{{ "Aktif" if account.status_aktif else "Nonaktif" }}</span>
+                    <span>
+                        <button type="button" data-account-edit>Edit</button>
+                        <button type="button" data-account-delete>Hapus</button>
+                    </span>
+                </article>
+                {% endfor %}
+            {% else %}
+                <article class="academic-account-row">
+                    <span class="account-name">Belum ada data.</span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </article>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="academic-edit-layer" data-academic-edit-layer aria-hidden="true">
+        <div class="academic-edit-panel" role="dialog" aria-modal="true" aria-labelledby="academic-edit-title">
+            <button class="academic-account-close" type="button" data-academic-edit-close aria-label="Tutup edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+            </button>
+
+            <div class="academic-account-heading">
+                {{ admin_icon("pencil") }}
+                <div>
+                    <h2 id="academic-edit-title">Edit Akun Dosen</h2>
+                    <p>Perbarui detail akun akademik.</p>
+                </div>
+            </div>
+
+            <form class="academic-edit-form" method="POST" action="{{ url_for('admin.akademik_pengguna') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="form_name" value="academic_update">
+                <input type="hidden" name="role" data-edit-role>
+                <input type="hidden" name="account_id" data-edit-id>
+
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-name">Nama</label>
+                    <input id="academic-edit-name" name="nama" type="text" data-edit-name required>
+                </div>
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-username">Username</label>
+                    <input id="academic-edit-username" name="username" type="text" data-edit-username required>
+                </div>
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-nidn">NIDN</label>
+                    <input id="academic-edit-nidn" name="nidn" type="text" data-edit-nidn required>
+                </div>
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-program">Program Studi</label>
+                    <select id="academic-edit-program" name="id_program_studi" data-edit-program required>
+                        {% for program in study_programs %}
+                            <option value="{{ program.id_program_studi }}">{{ program.nama_program_studi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-password">Password Baru</label>
+                    <input id="academic-edit-password" name="password" type="password">
+                </div>
+                <div class="admin-lecturer-field">
+                    <label for="academic-edit-signature">Tanda Tangan PNG</label>
+                    <input id="academic-edit-signature" name="signature_file" type="file" accept="image/png">
+                </div>
+                <div class="admin-lecturer-field" data-edit-lecturer-type-field hidden>
+                    <label for="academic-edit-lecturer-type">Jenis Dosen</label>
+                    <select id="academic-edit-lecturer-type" name="jenis_dosen" data-edit-lecturer-type required disabled>
+                        <option value="Internal">Internal</option>
+                        <option value="Eksternal">Eksternal</option>
+                    </select>
+                </div>
+                <label class="admin-lecturer-toggle">
+                    <input type="checkbox" name="status_aktif" value="1" data-edit-status>
+                    <span>Status Aktif</span>
+                </label>
+
+                <div class="admin-lecturer-actions">
+                    <button class="admin-lecturer-cancel" type="button" data-academic-edit-close>Batal</button>
+                    <button class="admin-lecturer-submit" type="submit">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="academic-delete-layer" data-academic-delete-layer aria-hidden="true">
+        <div class="academic-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="academic-delete-title">
+            <h2 id="academic-delete-title">Hapus akun ini?</h2>
+            <form class="academic-delete-actions" method="POST" data-academic-delete-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Hapus</button>
+                <button type="button" data-academic-delete-close>Batal</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const lecturerModal = document.querySelector("[data-lecturer-modal]");
+const lecturerModalOpen = document.querySelector("[data-lecturer-modal-open]");
+const lecturerModalCloseButtons = document.querySelectorAll("[data-lecturer-modal-close]");
+const signatureEditOverlay = document.querySelector("[data-signature-edit-overlay]");
+const signatureEditCloseButtons = document.querySelectorAll("[data-signature-edit-close]");
+const signatureDeleteOverlay = document.querySelector("[data-signature-delete-overlay]");
+const signatureDeleteCloseButtons = document.querySelectorAll("[data-signature-delete-close]");
+const signatureDeleteForm = document.querySelector("[data-signature-delete-form]");
+const signatureEditFields = {
+    role: document.querySelector("[data-signature-edit-role]"),
+    id: document.querySelector("[data-signature-edit-id]"),
+    nidn: document.querySelector("[data-signature-edit-nidn]"),
+    name: document.querySelector("[data-signature-edit-name]"),
+    username: document.querySelector("[data-signature-edit-username]"),
+    program: document.querySelector("[data-signature-edit-program]"),
+    status: document.querySelector("[data-signature-edit-status]"),
+    lecturerType: document.querySelector("[data-signature-edit-lecturer-type]"),
+    preview: document.querySelector("[data-signature-edit-preview]"),
+};
+const signatureDeleteFields = {
+    name: document.querySelector("[data-signature-delete-name]"),
+    program: document.querySelector("[data-signature-delete-program]"),
+};
+const kaprodiForm = document.querySelector("[data-kaprodi-form]");
+const kaprodiProgramSelect = document.querySelector("[data-kaprodi-program-select]");
+const kaprodiProgramName = document.querySelector("[data-kaprodi-program-name]");
+const academicAccountOverlay = document.querySelector("[data-academic-account-overlay]");
+const academicAccountOpenButtons = document.querySelectorAll("[data-academic-account-open]");
+const academicAccountCloseButtons = document.querySelectorAll("[data-academic-account-close]");
+const academicTabButtons = document.querySelectorAll("[data-academic-tab]");
+const academicPanels = document.querySelectorAll("[data-academic-panel]");
+const academicEditLayer = document.querySelector("[data-academic-edit-layer]");
+const academicEditCloseButtons = document.querySelectorAll("[data-academic-edit-close]");
+const academicDeleteLayer = document.querySelector("[data-academic-delete-layer]");
+const academicDeleteCloseButtons = document.querySelectorAll("[data-academic-delete-close]");
+const academicDeleteForm = document.querySelector("[data-academic-delete-form]");
+const editTitle = document.querySelector("#academic-edit-title");
+const editInputs = {
+    role: document.querySelector("[data-edit-role]"),
+    id: document.querySelector("[data-edit-id]"),
+    name: document.querySelector("[data-edit-name]"),
+    username: document.querySelector("[data-edit-username]"),
+    nidn: document.querySelector("[data-edit-nidn]"),
+    program: document.querySelector("[data-edit-program]"),
+    status: document.querySelector("[data-edit-status]"),
+    lecturerType: document.querySelector("[data-edit-lecturer-type]"),
+};
+const createRole = document.querySelector("#lecturer-role");
+const createLecturerTypeField = document.querySelector("[data-create-lecturer-type-field]");
+const createLecturerType = document.querySelector("#lecturer-type");
+const editLecturerTypeField = document.querySelector("[data-edit-lecturer-type-field]");
+let activeAcademicTab = "dosen";
+
+function openLecturerModal() {
+    lecturerModal.classList.add("is-open");
+    lecturerModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-lecturer-modal-open");
+}
+
+function closeLecturerModal() {
+    lecturerModal.classList.remove("is-open");
+    lecturerModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("admin-lecturer-modal-open");
+}
+
+lecturerModalOpen.addEventListener("click", openLecturerModal);
+
+lecturerModalCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeLecturerModal);
+});
+
+lecturerModal.addEventListener("click", (event) => {
+    if (event.target === lecturerModal) {
+        closeLecturerModal();
+    }
+});
+
+document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+        return;
+    }
+
+    if (signatureDeleteOverlay.classList.contains("is-open")) {
+        closeSignatureDelete();
+    } else if (signatureEditOverlay.classList.contains("is-open")) {
+        closeSignatureEdit();
+    } else if (academicDeleteLayer.classList.contains("is-open")) {
+        closeAcademicDelete();
+    } else if (academicEditLayer.classList.contains("is-open")) {
+        closeAcademicEdit();
+    } else if (academicAccountOverlay.classList.contains("is-open")) {
+        closeAcademicAccount();
+    } else if (lecturerModal.classList.contains("is-open")) {
+        closeLecturerModal();
+    }
+});
+
+function openSignatureEdit(signatureCard) {
+    signatureEditFields.role.value = signatureCard.dataset.signatureRole || "";
+    signatureEditFields.id.value = signatureCard.dataset.signatureId || "";
+    signatureEditFields.nidn.value = signatureCard.dataset.signatureNidn || "";
+    signatureEditFields.name.value = signatureCard.dataset.signatureName || "";
+    signatureEditFields.username.value = signatureCard.dataset.signatureUsername || "";
+    signatureEditFields.program.value = signatureCard.dataset.signatureProgramId || "";
+    signatureEditFields.status.checked = signatureCard.dataset.signatureStatus === "Aktif";
+    signatureEditFields.lecturerType.value = signatureCard.dataset.signatureLecturerType || "Internal";
+    signatureEditFields.preview.src = signatureCard.dataset.signatureUrl || "";
+    signatureEditFields.preview.hidden = !signatureCard.dataset.signatureUrl;
+
+    signatureEditOverlay.classList.add("is-open");
+    signatureEditOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-signature-file-open");
+}
+
+function closeSignatureEdit() {
+    signatureEditOverlay.classList.remove("is-open");
+    signatureEditOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("admin-signature-file-open");
+}
+
+function openSignatureDelete(signatureCard) {
+    signatureDeleteFields.name.textContent = signatureCard.dataset.signatureName || "Belum ada data.";
+    signatureDeleteFields.program.textContent = signatureCard.dataset.signatureProgram || "Belum ada data.";
+    signatureDeleteForm.action = signatureCard.dataset.signatureDeleteUrl || "";
+
+    signatureDeleteOverlay.classList.add("is-open");
+    signatureDeleteOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-signature-file-open");
+}
+
+function closeSignatureDelete() {
+    signatureDeleteOverlay.classList.remove("is-open");
+    signatureDeleteOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("admin-signature-file-open");
+}
+
+function setAcademicTab(tabName) {
+    activeAcademicTab = tabName;
+
+    academicTabButtons.forEach((button) => {
+        const isActive = button.dataset.academicTab === tabName;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    academicPanels.forEach((panel) => {
+        panel.classList.toggle("is-active", panel.dataset.academicPanel === tabName);
+    });
+}
+
+function openAcademicAccount(tabName = "dosen") {
+    setAcademicTab(tabName);
+    academicAccountOverlay.classList.add("is-open");
+    academicAccountOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-academic-account-open");
+}
+
+function closeAcademicAccount() {
+    closeAcademicEdit();
+    closeAcademicDelete();
+    academicAccountOverlay.classList.remove("is-open");
+    academicAccountOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("admin-academic-account-open");
+}
+
+function openAcademicEdit(accountRow) {
+    const role = accountRow.dataset.accountRole || activeAcademicTab;
+    const roleLabel = role === "kaprodi" ? "Kaprodi" : "Dosen";
+
+    editTitle.textContent = `Edit Akun ${roleLabel}`;
+    editInputs.role.value = role;
+    editInputs.id.value = accountRow.dataset.accountId || "";
+    editInputs.name.value = accountRow.dataset.accountName || "";
+    editInputs.username.value = accountRow.dataset.accountUsername || "";
+    editInputs.nidn.value = accountRow.dataset.accountNidn || "";
+    editInputs.program.value = accountRow.dataset.accountProgram || "";
+    editInputs.status.checked = accountRow.dataset.accountStatus === "Aktif";
+    const isLecturer = role === "dosen";
+    editLecturerTypeField.hidden = !isLecturer;
+    editInputs.lecturerType.disabled = !isLecturer;
+    editInputs.lecturerType.value = accountRow.dataset.accountLecturerType || "Internal";
+
+    academicEditLayer.classList.add("is-open");
+    academicEditLayer.setAttribute("aria-hidden", "false");
+}
+
+function toggleCreateLecturerType() {
+    const isLecturer = createRole.value === "dosen";
+    createLecturerTypeField.hidden = !isLecturer;
+    createLecturerType.disabled = !isLecturer;
+    if (isLecturer && !createLecturerType.value) {
+        createLecturerType.value = "Internal";
+    }
+}
+
+createRole.addEventListener("change", toggleCreateLecturerType);
+toggleCreateLecturerType();
+
+function closeAcademicEdit() {
+    academicEditLayer.classList.remove("is-open");
+    academicEditLayer.setAttribute("aria-hidden", "true");
+}
+
+function openAcademicDelete(accountRow) {
+    academicDeleteForm.action = accountRow.dataset.accountDeleteUrl || "";
+    academicDeleteLayer.classList.add("is-open");
+    academicDeleteLayer.setAttribute("aria-hidden", "false");
+}
+
+function closeAcademicDelete() {
+    academicDeleteLayer.classList.remove("is-open");
+    academicDeleteLayer.setAttribute("aria-hidden", "true");
+}
+
+academicAccountOpenButtons.forEach((button) => {
+    button.addEventListener("click", () => openAcademicAccount(button.dataset.accountTab));
+});
+
+academicAccountCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeAcademicAccount);
+});
+
+academicTabButtons.forEach((button) => {
+    button.addEventListener("click", () => setAcademicTab(button.dataset.academicTab));
+});
+
+academicAccountOverlay.addEventListener("click", (event) => {
+    if (event.target === academicAccountOverlay) {
+        closeAcademicAccount();
+    }
+});
+
+academicEditLayer.addEventListener("click", (event) => {
+    if (event.target === academicEditLayer) {
+        closeAcademicEdit();
+    }
+});
+
+academicDeleteLayer.addEventListener("click", (event) => {
+    if (event.target === academicDeleteLayer) {
+        closeAcademicDelete();
+    }
+});
+
+academicEditCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeAcademicEdit);
+});
+
+academicDeleteCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeAcademicDelete);
+});
+
+document.querySelectorAll("[data-account-edit]").forEach((button) => {
+    button.addEventListener("click", () => openAcademicEdit(button.closest("[data-account-name]")));
+});
+
+document.querySelectorAll("[data-account-delete]").forEach((button) => {
+    button.addEventListener("click", () => openAcademicDelete(button.closest("[data-account-name]")));
+});
+
+document.querySelectorAll("[data-signature-edit]").forEach((button) => {
+    button.addEventListener("click", () => openSignatureEdit(button.closest("[data-signature-card]")));
+});
+
+document.querySelectorAll("[data-signature-delete]").forEach((button) => {
+    button.addEventListener("click", () => openSignatureDelete(button.closest("[data-signature-card]")));
+});
+
+signatureEditCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeSignatureEdit);
+});
+
+signatureDeleteCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeSignatureDelete);
+});
+
+signatureEditOverlay.addEventListener("click", (event) => {
+    if (event.target === signatureEditOverlay) {
+        closeSignatureEdit();
+    }
+});
+
+signatureDeleteOverlay.addEventListener("click", (event) => {
+    if (event.target === signatureDeleteOverlay) {
+        closeSignatureDelete();
+    }
+});
+
+document.querySelectorAll("[data-confirm-form]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+        if (!window.confirm("Hapus data ini?")) {
+            event.preventDefault();
+        }
+    });
+});
+
+if (kaprodiForm && kaprodiProgramSelect && kaprodiProgramName) {
+    kaprodiForm.addEventListener("submit", () => {
+        const selectedOption = kaprodiProgramSelect.options[kaprodiProgramSelect.selectedIndex];
+        kaprodiProgramName.value = selectedOption ? selectedOption.textContent.trim() : "";
+    });
+}
+</script>
+{% endblock %}

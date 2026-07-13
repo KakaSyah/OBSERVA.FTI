@@ -1,0 +1,32 @@
+{% extends "layouts/base.html" %}
+{% import "admin/_macros.html" as m %}
+
+{% block title %}Profil Saya — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 mb-4">Profil Saya</h1>
+
+                <dl class="row small mb-4">
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ current_user.email }}</dd>
+                    <dt class="col-sm-4">Role</dt>
+                    <dd class="col-sm-8">{{ current_user.role.name | capitalize }}</dd>
+                </dl>
+
+                <hr class="mb-4">
+
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    {{ m.render_field(form.name) }}
+                    {{ m.render_field(form.phone) }}
+                    {{ form.submit(class="btn btn-primary") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "layouts/base.html" %}
+{% import "admin/_macros.html" as m %}
+
+{% block title %}Template Surat — {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Template Surat</h1>
+    <a href="{{ url_for('admin.template_surat_create') }}" class="btn btn-primary btn-sm">+ Tambah Template</a>
+</div>
+<p class="text-muted small">
+    Template yang berstatus <strong>Aktif</strong> dipakai sistem saat generate PDF surat resmi maupun draft (FR-42/FR-51).
+    Hanya satu template yang dapat aktif dalam satu waktu.
+</p>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        {% if templates %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Nama</th><th>Berkas</th><th>Margin (T/B/K/Kn)</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                {% for t in templates %}
+                    <tr>
+                        <td>{{ t.name }}</td>
+                        <td>
+                            {% if t.cloudinary_file %}
+                                <a href="{{ t.cloudinary_file.secure_url }}" target="_blank" rel="noopener">{{ t.cloudinary_file.original_filename or "Unduh" }}</a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.margin_top }} / {{ t.margin_bottom }} / {{ t.margin_left }} / {{ t.margin_right }} cm</td>
+                        <td>
+                            {% if t.is_active %}
+                                <span class="badge bg-success">Aktif</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Nonaktif</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin.template_surat_edit', template_id=t.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            {{ m.delete_button(url_for('admin.template_surat_delete', template_id=t.id), confirm="Hapus template '" + t.name + "'?") }}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">
+            Belum ada Template Surat. Sistem memakai margin default (lihat menu Setting Margin) dan kop surat teks.
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

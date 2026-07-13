@@ -1,0 +1,99 @@
+{% macro render_field(field, extra_class="") %}
+    <div class="mb-3">
+        {% if field.type == "BooleanField" %}
+            <div class="form-check">
+                {{ field(class="form-check-input" + (" is-invalid" if field.errors else ""), **kwargs) }}
+                {{ field.label(class="form-check-label") }}
+            </div>
+        {% else %}
+            {{ field.label(class="form-label") }}
+            {% if field.type == "SelectField" %}
+                {{ field(class="form-select " + extra_class + (" is-invalid" if field.errors else ""), **kwargs) }}
+            {% elif field.type == "TextAreaField" %}
+                {{ field(class="form-control " + extra_class + (" is-invalid" if field.errors else ""), rows=kwargs.pop("rows", 3), **kwargs) }}
+            {% elif field.type == "FileField" %}
+                {{ field(class="form-control " + extra_class + (" is-invalid" if field.errors else ""), **kwargs) }}
+            {% else %}
+                {{ field(class="form-control " + extra_class + (" is-invalid" if field.errors else ""), **kwargs) }}
+            {% endif %}
+        {% endif %}
+        {% for error in field.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+{% macro pagination_nav(pagination, endpoint, extra_args={}) %}
+{% if pagination.pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center mb-0">
+        <li class="page-item {{ 'disabled' if pagination.page <= 1 }}">
+            {% if pagination.page <= 1 %}
+                <span class="page-link">&laquo; Sebelumnya</span>
+            {% else %}
+                <a class="page-link" href="{{ url_for(endpoint, page=pagination.page - 1, **extra_args) }}">&laquo; Sebelumnya</a>
+            {% endif %}
+        </li>
+        {% for page_number in range(1, pagination.pages + 1) %}
+        <li class="page-item {{ 'active' if page_number == pagination.page }}">
+            {% if page_number == pagination.page %}
+                <span class="page-link" aria-current="page">{{ page_number }}</span>
+            {% else %}
+                <a class="page-link" href="{{ url_for(endpoint, page=page_number, **extra_args) }}">{{ page_number }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if pagination.page >= pagination.pages }}">
+            {% if pagination.page >= pagination.pages %}
+                <span class="page-link">Berikutnya &raquo;</span>
+            {% else %}
+                <a class="page-link" href="{{ url_for(endpoint, page=pagination.page + 1, **extra_args) }}">Berikutnya &raquo;</a>
+            {% endif %}
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}
+
+{% macro delete_button(action_url, label="Hapus", confirm="Yakin ingin menghapus data ini?") %}
+<form method="POST" action="{{ action_url }}" class="d-inline" onsubmit="return confirm('{{ confirm }}');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-sm btn-outline-danger">{{ label }}</button>
+</form>
+{% endmacro %}
+
+{% macro document_subject() %}Surat Permohonan Observasi{% endmacro %}
+
+{% macro kop_document_preview(margin_setting, background_url, include_data_attribute=false) %}
+<div
+    class="letter-preview-paper kop-preview-paper {% if background_url %}has-custom-bg{% endif %}"
+    {% if include_data_attribute %}data-kop-preview-paper{% endif %}
+    style="--kop-margin-top: {{ margin_setting.top }}mm; --kop-margin-left: {{ margin_setting.left }}mm; --kop-margin-right: {{ margin_setting.right }}mm; --kop-margin-bottom: {{ margin_setting.bottom }}mm;{% if background_url %} --kop-preview-bg: url('{{ background_url }}');{% endif %}"
+>
+    <div class="letter-preview-meta">
+        <div>
+            <span>Nomor:</span>
+            <span>0000/OBS-FTI/DD/MM/YYYY</span>
+            <span>Perihal:</span>
+            <span>{{ document_subject() }}</span>
+        </div>
+        <div>
+            <span>Kepada Yth:</span>
+            <span>Belum ada data.</span>
+            <span>Belum ada data.</span>
+            <span>Belum ada data.</span>
+        </div>
+    </div>
+    <span class="letter-preview-date">Belum ada data.</span>
+    <div class="letter-preview-body">
+        <p>Dengan Hormat,</p>
+        <p>Belum ada data pemohon.</p>
+        <p>Belum ada data akademik.</p>
+        <p>Demikian surat ini kami sampaikan. Atas perhatian dan kerja sama diberikan, diucapkan terima kasih.</p>
+    </div>
+    <div class="letter-preview-signatures">
+        <div><span>Mengetahui</span><strong>Belum ada data.</strong></div>
+        <div><span>Menyetujui</span><strong>Belum ada data.</strong></div>
+    </div>
+</div>
+{% endmacro %}
