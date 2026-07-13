@@ -366,18 +366,52 @@ async function uploadFinalPdf(data, pdfBlob) {
     const megabyte = 1024 * 1024;
     console.info(`[Final PDF] Blob hybrid yang dikirim: ${(pdfBlob.size / megabyte).toFixed(2)} MB (${pdfBlob.size} bytes)`);
 
-    const payload = new FormData();
-    payload.append("pdf", pdfBlob, "Surat_Observasi.pdf");
-
-    const response = await fetch(data.uploadFinalPdfUrl, {
+    const signResponse = await fetch(`${data.uploadFinalPdfUrl}/sign`, {
         method: "POST",
         credentials: "same-origin",
-        headers: { "X-CSRFToken": "{{ csrf_token() }}" },
-        body: payload
+        headers: { "X-CSRFToken": "{{ csrf_token() }}" }
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) {
-        throw new Error(result.message || "Gagal mengunggah PDF final.");
+    const signResult = await signResponse.json().catch(() => ({}));
+    if (!signResponse.ok || !signResult.ok) {
+        throw new Error(signResult.message || "Gagal mendapatkan signed upload Cloudinary.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", pdfBlob, "Surat_Observasi.pdf");
+    formData.append("api_key", signResult.api_key);
+    formData.append("timestamp", String(signResult.timestamp));
+    formData.append("signature", signResult.signature);
+    formData.append("public_id", signResult.public_id);
+    formData.append("folder", signResult.folder);
+    formData.append("resource_type", signResult.resource_type);
+
+    const cloudinaryResponse = await fetch(signResult.upload_url, {
+        method: "POST",
+        body: formData
+    });
+    const cloudinaryResult = await cloudinaryResponse.json().catch(() => ({}));
+    if (!cloudinaryResponse.ok || !cloudinaryResult.secure_url) {
+        throw new Error(cloudinaryResult.error?.message || "Gagal mengunggah PDF ke Cloudinary.");
+    }
+
+    const finalizeResponse = await fetch(data.uploadFinalPdfUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            cloudinaryResult: {
+                public_id: cloudinaryResult.public_id,
+                secure_url: cloudinaryResult.secure_url,
+                resource_type: cloudinaryResult.resource_type || signResult.resource_type
+            }
+        })
+    });
+    const finalizeResult = await finalizeResponse.json().catch(() => ({}));
+    if (!finalizeResponse.ok || !finalizeResult.ok) {
+        throw new Error(finalizeResult.message || "Gagal menyimpan referensi PDF final.");
     }
 }
 

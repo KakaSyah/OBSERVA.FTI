@@ -21,6 +21,9 @@ Pillow==10.4.0
 # ---------- Email ----------
 resend==2.4.0
 
+# ---------- HTTP Client ----------
+requests==2.32.3
+
 # ---------- WSGI Server (Production) ----------
 gunicorn==22.0.0
 

@@ -25,14 +25,20 @@ class DummyCursor:
 def test_upload_final_pdf_sends_email(monkeypatch):
     called = {}
 
-    # fake cloudinary upload
-    def fake_upload(pdf_bytes, request_id):
-        called['upload_called'] = True
-        assert pdf_bytes == b'PDFBYTES'
-        assert request_id == 42
-        return {'file_id': 'file-xyz'}
+    cloudinary_result = {
+        'public_id': 'surat-resmi/observation-request-42',
+        'secure_url': 'https://cloudinary.test/surat.pdf',
+        'resource_type': 'raw',
+    }
 
-    monkeypatch.setattr(observation_service.cloudinary_service, 'upload_official_letter_pdf', fake_upload)
+    def fake_record(cloudinary_payload, request_id):
+        called['record_called'] = True
+        assert cloudinary_payload == cloudinary_result
+        assert request_id == 42
+        return {'file_id': 'file-xyz', **cloudinary_result}
+
+    monkeypatch.setattr(observation_service.cloudinary_service, 'record_official_letter_pdf', fake_record)
+    monkeypatch.setattr(observation_service.cloudinary_service, 'fetch_uploaded_bytes', lambda secure_url, max_bytes: b'PDFBYTES')
 
     # fake db.execute to return cursor with rowcount 1
     def fake_execute(sql, params):
@@ -61,9 +67,9 @@ def test_upload_final_pdf_sends_email(monkeypatch):
 
     obs = SimpleNamespace(id=42, status_kaprodi='Disetujui', student=SimpleNamespace(user=SimpleNamespace(email='applicant@example.com')))
 
-    result = observation_service.upload_final_pdf(obs, b'PDFBYTES')
+    result = observation_service.upload_final_pdf(obs, cloudinary_result)
     assert result['file_id'] == 'file-xyz'
-    assert called.get('upload_called')
+    assert called.get('record_called')
     assert called.get('notify_called')
     # ensure an EmailLog instance was inserted
     assert any(isinstance(x, EmailLog) for x in inserted)
@@ -71,7 +77,13 @@ def test_upload_final_pdf_sends_email(monkeypatch):
 
 def test_upload_final_pdf_email_failure_does_not_fail(monkeypatch):
     # Make notify raise an exception and ensure upload still succeeds and failure is recorded
-    monkeypatch.setattr(observation_service.cloudinary_service, 'upload_official_letter_pdf', lambda b, id: {'file_id': 'file-abc'})
+    cloudinary_result = {
+        'public_id': 'surat-resmi/observation-request-99',
+        'secure_url': 'https://cloudinary.test/surat.pdf',
+        'resource_type': 'raw',
+    }
+    monkeypatch.setattr(observation_service.cloudinary_service, 'record_official_letter_pdf', lambda payload, request_id: {'file_id': 'file-abc', **payload})
+    monkeypatch.setattr(observation_service.cloudinary_service, 'fetch_uploaded_bytes', lambda secure_url, max_bytes: b'PDF')
     monkeypatch.setattr(observation_service.db, 'execute', lambda sql, params: DummyCursor(rowcount=1))
     monkeypatch.setattr(observation_service.db, 'commit', lambda: None)
     monkeypatch.setattr(observation_service.db, 'rollback', lambda: None)
@@ -87,7 +99,27 @@ def test_upload_final_pdf_email_failure_does_not_fail(monkeypatch):
 
     obs = SimpleNamespace(id=99, status_kaprodi='Disetujui', student=SimpleNamespace(user=SimpleNamespace(email='applicant2@example.com')))
 
-    result = observation_service.upload_final_pdf(obs, b'PDF')
+    result = observation_service.upload_final_pdf(obs, cloudinary_result)
     assert result['file_id'] == 'file-abc'
     # even though notify raised, we should have created a failed EmailLog record
     assert any(isinstance(x, EmailLog) and x.status == EmailLog.STATUS_FAILED for x in inserted)
+
+
+def test_record_official_letter_pdf_rejects_mismatched_public_id(monkeypatch):
+    monkeypatch.setattr(observation_service.cloudinary_service, '_ensure_configured', lambda: None)
+
+    def fake_resource(public_id, resource_type='raw'):
+        return {'public_id': public_id, 'resource_type': resource_type}
+
+    monkeypatch.setattr(observation_service.cloudinary_service.cloudinary, 'api', SimpleNamespace(resource=fake_resource), raising=False)
+
+    def fake_insert(sql, params):
+        raise AssertionError('DB insert should not be called for mismatched public_id')
+
+    monkeypatch.setattr(observation_service.cloudinary_service.db, 'insert', fake_insert)
+
+    with pytest.raises(observation_service.cloudinary_service.CloudinaryServiceError):
+        observation_service.cloudinary_service.record_official_letter_pdf(
+            {'public_id': 'surat-resmi/observation-request-7', 'secure_url': 'https://cloudinary.test/file', 'resource_type': 'raw'},
+            8,
+        )
