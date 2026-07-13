@@ -83,11 +83,26 @@ class BaseConfig:
     # ---------- SESSION ----------
     # Gunakan backend filesystem agar Flask-Session tidak mencoba membuat
     # interface penyimpanan session khusus ORM.
-    SESSION_TYPE = "cachelib"
+    #
+    # Di platform serverless (Vercel dkk), filesystem read-only di luar /tmp
+    # dan tidak persisten antar-invocation, jadi Flask-Session berbasis file
+    # TIDAK BISA dipakai (lihat backend/__init__.py::create_app, session_ext
+    # hanya di-init_app() bila IS_SERVERLESS bernilai False). Di environment
+    # itu, Flask otomatis jatuh kembali ke session cookie bawaan miliknya
+    # sendiri (ditandatangani SECRET_KEY, disimpan di browser, tidak butuh
+    # penyimpanan di server) -- cukup untuk data session yang kecil (id user
+    # login, flag, dsb) yang dipakai aplikasi ini.
+    IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
+    if IS_SERVERLESS:
+        SESSION_TYPE = None
+        SESSION_CACHELIB = None
+    else:
+        SESSION_TYPE = "cachelib"
+        SESSION_FILE_DIR = os.getenv("SESSION_FILE_DIR", os.path.join(os.getcwd(), ".flask_session"))
+        SESSION_CACHELIB = FileSystemCache(cache_dir=SESSION_FILE_DIR, threshold=500)
     SESSION_PERMANENT = _get_bool("SESSION_PERMANENT", False)
     SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "izin_observasi_session")
-    SESSION_FILE_DIR = os.getenv("SESSION_FILE_DIR", os.path.join(os.getcwd(), ".flask_session"))
-    SESSION_CACHELIB = FileSystemCache(cache_dir=SESSION_FILE_DIR, threshold=500)
     SESSION_COOKIE_SECURE = _get_bool("SESSION_COOKIE_SECURE", True)
     SESSION_COOKIE_HTTPONLY = _get_bool("SESSION_COOKIE_HTTPONLY", True)
     SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")

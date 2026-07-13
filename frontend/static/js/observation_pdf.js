@@ -13,6 +13,9 @@
     var SIGNATURE_LINE_GAP = 1;
     var SIGNATURE_ROLE_GAP = 5;
     var SIGNATURE_BOTTOM_GAP = 4;
+    // Ukuran & posisi gambar tanda tangan digital, diukur dari PDF referensi (Alur 2 - Kirim TTD Digital):
+    // kotak ~30.7mm x ~24mm, mulai tepat di bawah label "Mengetahui"/"Menyetujui",
+    // berakhir sedikit melewati garis TTD, center-nya sejajar dengan leftCenter/rightCenter.
     var SIGNATURE_IMAGE_WIDTH = 30;
     var SIGNATURE_IMAGE_BOTTOM_PAD = 2;
 
@@ -179,6 +182,7 @@
         return canvas;
     }
 
+    /** Muat & gambar satu tanda tangan digital di dalam kotak (centerX, topY, maxWidth, maxHeight). */
     async function drawSignatureImage(pdf, url, centerX, topY, maxWidth, maxHeight, label) {
         if (!url) {
             throw new Error(
@@ -213,6 +217,8 @@
         pdf.text("Kaprodi", leftCenter, y + metrics.roleY, { align: "center", baseline: "top" });
         pdf.text("Pengampu Mata Kuliah", rightCenter, y + metrics.roleY, { align: "center", baseline: "top" });
 
+        // Alur 2 (Kirim TTD Digital) WAJIB ada gambar tanda tangan. Alur 1 (Cetak Hardfile)
+        // sengaja tidak memanggil blok ini sama sekali -> area tetap kosong, itu bukan bug.
         if (options && options.digitalSignature) {
             var imgTop = y + LINE_HEIGHT;
             var imgMaxHeight = (metrics.lineY + SIGNATURE_IMAGE_BOTTOM_PAD) - LINE_HEIGHT;

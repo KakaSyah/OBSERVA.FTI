@@ -97,8 +97,13 @@ def create_app(config_object=None):
     # Models are imported lazily by controllers/routes as needed.
     login_manager.init_app(app)
 
-    # Flask-Session: keep using default session backend (filesystem or redis)
-    session_ext.init_app(app)
+    # Flask-Session: keep using default session backend (filesystem or redis).
+    # Di environment serverless (Vercel dkk), filesystem tidak bisa dipakai
+    # (lihat backend/config/base.py -- SESSION_TYPE sengaja None di sana),
+    # jadi session_ext TIDAK di-init_app() sama sekali di situ, dan Flask
+    # otomatis jatuh kembali ke session cookie bawaannya sendiri.
+    if not app.config.get("IS_SERVERLESS"):
+        session_ext.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
     bcrypt.init_app(app)

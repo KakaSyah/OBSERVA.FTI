@@ -59,19 +59,40 @@ class _RequestContextFilter(logging.Filter):
 
 def init_logging(app):
     """Inisialisasi logging aplikasi berdasarkan konfigurasi di .env."""
-    log_dir = app.config.get("LOG_DIR", "logs")
-    log_file_name = app.config.get("LOG_FILE_NAME", "app.log")
     log_level = getattr(logging, app.config.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
-
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, log_file_name)
-    error_log_path = os.path.join(log_dir, "error.log")
-
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)s in %(module)s "
         "(ip=%(ip)s user=%(user)s endpoint=%(endpoint)s): %(message)s"
     )
     context_filter = _RequestContextFilter()
+
+    # Platform serverless (Vercel, AWS Lambda, dll) punya filesystem READ-ONLY
+    # di luar /tmp, dan tiap invocation bisa berjalan di container baru --
+    # RotatingFileHandler akan selalu gagal (OSError: Read-only file system)
+    # dan MEMATIKAN seluruh aplikasi karena dipanggil sebelum app siap
+    # menerima request. Di environment ini, log cukup ditulis ke stdout/stderr
+    # -- otomatis tertangkap oleh dashboard log platform tsb (mis. Vercel
+    # "Logs"/"Functions" tab), tanpa perlu menulis file sama sekali.
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+    if is_serverless:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(log_level)
+        stream_handler.addFilter(context_filter)
+        app.logger.setLevel(log_level)
+        app.logger.addHandler(stream_handler)
+        app.logger.info(
+            "Logging berhasil diinisialisasi ke stdout (mode serverless terdeteksi)."
+        )
+        return
+
+    log_dir = app.config.get("LOG_DIR", "logs")
+    log_file_name = app.config.get("LOG_FILE_NAME", "app.log")
+
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, log_file_name)
+    error_log_path = os.path.join(log_dir, "error.log")
 
     # Log utama: seluruh level >= LOG_LEVEL (default INFO), rotasi 5MB x 5 file.
     file_handler = RotatingFileHandler(
