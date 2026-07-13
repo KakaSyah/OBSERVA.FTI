@@ -15,7 +15,6 @@ from flask_login import current_user, logout_user
 from backend.forms.kaprodi_forms import ApprovalNoteForm, ProfileForm
 from backend.services import kop_setting_service, observation_service as obs_service
 from backend.extensions import db
-from backend.utils.uploads import CATEGORY_PDF, UploadValidationError, validate_upload_content
 
 
 # ---------- Helper internal ----------
@@ -147,42 +146,43 @@ def approve_request(request_id):
     return redirect(url_for("kaprodi.detail_persetujuan", request_id=obs.id))
 
 
+def sign_final_pdf_upload(request_id):
+    """Buat signed upload params agar browser mengunggah PDF final langsung ke Cloudinary."""
+    head_of_program = _current_head_of_program()
+    if head_of_program is None:
+        return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
+    _get_head_of_program_request_or_404(request_id, head_of_program)
+
+    try:
+        signed_params = obs_service.cloudinary_service.generate_signed_upload_params(request_id)
+    except obs_service.cloudinary_service.CloudinaryServiceError as exc:
+        return jsonify(ok=False, message=str(exc)), 400
+
+    return jsonify(ok=True, **signed_params)
+
+
 def upload_final_pdf(request_id):
-    """Terima Blob PDF dari browser; backend hanya menyimpan hasilnya."""
-    request_size = request.content_length
-    flask_limit = current_app.config.get("MAX_CONTENT_LENGTH")
-    current_app.logger.info(
-        "Upload PDF final id=%s: request.content_length=%s bytes, MAX_CONTENT_LENGTH=%s bytes.",
-        request_id,
-        request_size,
-        flask_limit,
-    )
+    """Terima referensi hasil upload Cloudinary dari browser; backend hanya mencatatnya dan mengirim notifikasi."""
     head_of_program = _current_head_of_program()
     if head_of_program is None:
         return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
     obs = _get_head_of_program_request_or_404(request_id, head_of_program)
-    pdf_file = request.files.get("pdf")
-    if pdf_file is None or not pdf_file.filename:
-        return jsonify(ok=False, message="File PDF final wajib diunggah."), 400
+    payload = request.get_json(silent=True) or {}
+    cloudinary_result = payload.get("cloudinaryResult")
+    if not isinstance(cloudinary_result, dict):
+        return jsonify(ok=False, message="Data hasil upload Cloudinary tidak lengkap."), 400
+    if not cloudinary_result.get("public_id") or not cloudinary_result.get("secure_url") or not cloudinary_result.get("resource_type"):
+        return jsonify(ok=False, message="Data hasil upload Cloudinary tidak lengkap."), 400
 
     try:
-        max_size_mb = max(1, current_app.config.get("MAX_CONTENT_LENGTH", 10 * 1024 * 1024) // (1024 * 1024))
-        pdf_bytes = validate_upload_content(
-            pdf_file,
-            category=CATEGORY_PDF,
-            max_size_mb=max_size_mb,
-        )
-        current_app.logger.info(
-            "Upload PDF final id=%s: ukuran file diterima=%s bytes.",
-            request_id,
-            len(pdf_bytes),
-        )
-        upload_result = obs_service.upload_final_pdf(obs, pdf_bytes)
-    except (UploadValidationError, obs_service.ObservationRequestError) as exc:
+        upload_result = obs_service.upload_final_pdf(obs, cloudinary_result)
+    except obs_service.ObservationRequestError as exc:
+        return jsonify(ok=False, message=str(exc)), 400
+    except obs_service.cloudinary_service.CloudinaryServiceError as exc:
         return jsonify(ok=False, message=str(exc)), 400
 
     current_app.logger.info(
-        "PDF final pengajuan id=%s diterima dari browser dan diunggah ke Cloudinary.",
+        "PDF final pengajuan id=%s dicatat dari referensi Cloudinary.",
         obs.id,
     )
     return jsonify(

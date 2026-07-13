@@ -87,7 +87,7 @@ def register_error_handlers(app):
     def payload_too_large(error):
         if request.path.startswith("/kaprodi/upload-final-pdf/"):
             app.logger.warning(
-                "413 PDF final: path=%s content_length=%s bytes MAX_CONTENT_LENGTH=%s bytes IP=%s",
+                "413 PDF final: path=%s content_length=%s bytes MAX_CONTENT_LENGTH=%s bytes IP=%s (endpoint ini seharusnya tidak menerima file mentah lagi, kemungkinan regresi frontend).",
                 request.path,
                 request.content_length,
                 app.config.get("MAX_CONTENT_LENGTH"),

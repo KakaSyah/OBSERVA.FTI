@@ -44,10 +44,17 @@ def setujui_surat(request_id):
     return controller.approve_request(request_id)
 
 
+@kaprodi_bp.route("/upload-final-pdf/<int:request_id>/sign", methods=["POST"])
+@role_required(Role.KAPRODI)
+def sign_final_pdf_upload(request_id):
+    """Buat signed upload params agar browser bisa mengunggah PDF final langsung ke Cloudinary."""
+    return controller.sign_final_pdf_upload(request_id)
+
+
 @kaprodi_bp.route("/upload-final-pdf/<int:request_id>", methods=["POST"])
 @role_required(Role.KAPRODI)
 def upload_final_pdf(request_id):
-    """Terima PDF final yang dibuat html2canvas + jsPDF di browser Kaprodi."""
+    """Terima referensi hasil upload Cloudinary (JSON), bukan file PDF mentah lagi."""
     return controller.upload_final_pdf(request_id)
 
 
