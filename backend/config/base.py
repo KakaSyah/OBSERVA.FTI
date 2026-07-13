@@ -110,7 +110,17 @@ class BaseConfig:
         minutes=_get_int("PERMANENT_SESSION_LIFETIME_MINUTES", 60)
     )
     SESSION_SECRET = os.getenv("SESSION_SECRET", SECRET_KEY)
-    RESET_AUTH_ON_START = _get_bool("RESET_AUTH_ON_START", True)
+    # Di server tradisional, "start" = proses dinyalakan sekali (mis. deploy
+    # baru/restart manual) -> wajar memaksa semua sesi lama invalid demi
+    # keamanan. Di platform serverless (Vercel dkk), create_app() dipanggil
+    # ULANG di SETIAP cold start (bisa berkali-kali per jam tanpa ada deploy
+    # baru sama sekali) -- kalau tetap True, boot_id acak baru akan membuat
+    # nama cookie session berubah setiap cold start, sehingga cookie session
+    # pengguna yang dibuat di satu instance tidak dikenali instance lain ->
+    # CSRF token mismatch & pengguna diminta login berulang kali. Default-nya
+    # dibuat False otomatis di serverless; tetap bisa di-override manual lewat
+    # env var RESET_AUTH_ON_START bila memang diinginkan.
+    RESET_AUTH_ON_START = _get_bool("RESET_AUTH_ON_START", not IS_SERVERLESS)
     REMEMBER_COOKIE_NAME = os.getenv("REMEMBER_COOKIE_NAME", "izin_observasi_remember")
 
     # ---------- CLOUDINARY ----------
