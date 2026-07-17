@@ -180,7 +180,17 @@ def upload_final_pdf(request_id):
         return jsonify(ok=False, message="Data hasil unggah Cloudinary (secure_url/public_id) wajib dikirim."), 400
     # Pastikan public_id memang milik pengajuan ini (bukan hasil tempelan
     # sembarang) -- samakan formatnya dengan yang dibuat generate_signed_upload_params.
-    if public_id != f"surat-resmi/observation-request-{obs.id}":
+    # Catatan: tergantung setting akun Cloudinary ("Use asset folder as public
+    # ID prefix"), saat folder & public_id dikirim bersamaan, Cloudinary bisa
+    # mengembalikan public_id POLOS ("surat-resmi/observation-request-<id>")
+    # ATAU sudah DIGABUNG dengan folder ("sistem-izin-observasi/surat-resmi/
+    # observation-request-<id>"). Terima keduanya -- tetap harus persis cocok
+    # dengan salah satu dari 2 pola yang sah untuk pengajuan ini, jadi tidak
+    # melemahkan proteksi terhadap public_id yang ditempel sembarangan.
+    expected_public_id = f"surat-resmi/observation-request-{obs.id}"
+    folder = current_app.config.get("CLOUDINARY_UPLOAD_FOLDER")
+    expected_public_id_with_folder = f"{folder}/{expected_public_id}" if folder else expected_public_id
+    if public_id not in (expected_public_id, expected_public_id_with_folder):
         return jsonify(ok=False, message="public_id tidak sesuai dengan pengajuan ini."), 400
 
     try:
