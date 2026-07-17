@@ -11,11 +11,9 @@ dapat memakai ulang `upload_bytes`/`delete_resource` di bawah ini.
 
 import io
 import logging
-import time
 
 import cloudinary
 import cloudinary.uploader
-import cloudinary.utils
 from flask import current_app
 
 from backend.extensions import db
@@ -128,63 +126,3 @@ def upload_official_letter_pdf(pdf_bytes: bytes, observation_request_id: int) ->
         raise CloudinaryServiceError(f"Gagal menyimpan metadata PDF Cloudinary: {exc}") from exc
 
     return {**result, "file_id": file_id}
-
-
-def generate_signed_upload_params(observation_request_id: int) -> dict:
-    """
-    FR-51/FR-52: hasilkan parameter upload yang SUDAH DITANDATANGANI agar
-    browser bisa mengunggah PDF surat resmi LANGSUNG ke Cloudinary, tanpa
-    lewat body request Vercel Serverless Function -- yang dibatasi keras
-    ~4.5MB oleh platform (bukan oleh Flask MAX_CONTENT_LENGTH) dan tidak
-    bisa dinaikkan lewat konfigurasi apa pun. `CLOUDINARY_API_SECRET`
-    TIDAK PERNAH dikirim ke browser, hanya hasil tanda tangan (hash) HMAC
-    dari parameter upload -- ini pola resmi "signed upload" Cloudinary.
-    """
-    _ensure_configured()
-    public_id = f"surat-resmi/observation-request-{observation_request_id}"
-    folder = current_app.config.get("CLOUDINARY_UPLOAD_FOLDER")
-    timestamp = int(time.time())
-
-    params_to_sign = {"public_id": public_id, "timestamp": timestamp}
-    if folder:
-        params_to_sign["folder"] = folder
-
-    signature = cloudinary.utils.api_sign_request(params_to_sign, cloudinary.config().api_secret)
-
-    return {
-        "cloud_name": cloudinary.config().cloud_name,
-        "api_key": cloudinary.config().api_key,
-        "timestamp": timestamp,
-        "signature": signature,
-        "public_id": public_id,
-        "folder": folder,
-        "resource_type": "raw",
-        "upload_url": f"https://api.cloudinary.com/v1_1/{cloudinary.config().cloud_name}/raw/upload",
-    }
-
-
-def register_official_letter_pdf(
-    observation_request_id: int, *, secure_url: str, public_id: str, resource_type: str = "raw"
-) -> dict:
-    """
-    Simpan metadata PDF surat resmi yang SUDAH diunggah langsung dari
-    browser ke Cloudinary (lihat `generate_signed_upload_params`). TIDAK
-    melakukan upload apa pun di sini -- hanya mencatat metadata ke
-    `file_cloudinary`, setara dengan bagian akhir `upload_official_letter_pdf`
-    di atas untuk file yang dulunya di-upload lewat backend.
-    """
-    try:
-        file_id = db.insert(
-            "INSERT INTO `file_cloudinary` (`nama_file`, `public_id`, `secure_url`, `resource_type`) "
-            "VALUES (%s, %s, %s, %s)",
-            (
-                f"surat-izin-observasi-{observation_request_id}.pdf",
-                public_id,
-                secure_url,
-                resource_type,
-            ),
-        )
-    except Exception as exc:  # noqa: BLE001 - ubah ke error domain service
-        raise CloudinaryServiceError(f"Gagal menyimpan metadata PDF Cloudinary: {exc}") from exc
-
-    return {"file_id": file_id, "secure_url": secure_url, "public_id": public_id, "resource_type": resource_type}

@@ -13,8 +13,9 @@ from flask import abort, current_app, flash, jsonify, redirect, render_template,
 from flask_login import current_user, logout_user
 
 from backend.forms.kaprodi_forms import ApprovalNoteForm, ProfileForm
-from backend.services import cloudinary_service, kop_setting_service, observation_service as obs_service
+from backend.services import kop_setting_service, observation_service as obs_service
 from backend.extensions import db
+from backend.utils.uploads import CATEGORY_PDF, UploadValidationError, validate_upload_content
 
 
 # ---------- Helper internal ----------
@@ -146,62 +147,42 @@ def approve_request(request_id):
     return redirect(url_for("kaprodi.detail_persetujuan", request_id=obs.id))
 
 
-def final_pdf_upload_signature(request_id):
-    """Hasilkan signed upload params agar browser Kaprodi bisa unggah PDF
-    final LANGSUNG ke Cloudinary (bypass limit ~4.5MB body request Vercel
-    Serverless Function -- lihat cloudinary_service.generate_signed_upload_params)."""
-    head_of_program = _current_head_of_program()
-    if head_of_program is None:
-        return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
-    obs = _get_head_of_program_request_or_404(request_id, head_of_program)
-    try:
-        params = cloudinary_service.generate_signed_upload_params(obs.id)
-    except cloudinary_service.CloudinaryServiceError as exc:
-        return jsonify(ok=False, message=str(exc)), 500
-    return jsonify(ok=True, **params)
-
-
 def upload_final_pdf(request_id):
-    """Catat PDF final yang SUDAH diunggah browser LANGSUNG ke Cloudinary
-    (lewat signed params dari final_pdf_upload_signature) -- backend di sini
-    hanya menerima metadata kecil (secure_url/public_id), bukan file PDF-nya
-    sendiri, supaya tidak lagi kena limit ~4.5MB body request Vercel."""
+    """Terima Blob PDF dari browser; backend hanya menyimpan hasilnya."""
+    request_size = request.content_length
+    flask_limit = current_app.config.get("MAX_CONTENT_LENGTH")
+    current_app.logger.info(
+        "Upload PDF final id=%s: request.content_length=%s bytes, MAX_CONTENT_LENGTH=%s bytes.",
+        request_id,
+        request_size,
+        flask_limit,
+    )
     head_of_program = _current_head_of_program()
     if head_of_program is None:
         return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
     obs = _get_head_of_program_request_or_404(request_id, head_of_program)
-
-    payload = request.get_json(silent=True) or {}
-    secure_url = (payload.get("secure_url") or "").strip()
-    public_id = (payload.get("public_id") or "").strip()
-    resource_type = (payload.get("resource_type") or "raw").strip() or "raw"
-
-    if not secure_url or not public_id:
-        return jsonify(ok=False, message="Data hasil unggah Cloudinary (secure_url/public_id) wajib dikirim."), 400
-    # Pastikan public_id memang milik pengajuan ini (bukan hasil tempelan
-    # sembarang) -- samakan formatnya dengan yang dibuat generate_signed_upload_params.
-    # Catatan: tergantung setting akun Cloudinary ("Use asset folder as public
-    # ID prefix"), saat folder & public_id dikirim bersamaan, Cloudinary bisa
-    # mengembalikan public_id POLOS ("surat-resmi/observation-request-<id>")
-    # ATAU sudah DIGABUNG dengan folder ("sistem-izin-observasi/surat-resmi/
-    # observation-request-<id>"). Terima keduanya -- tetap harus persis cocok
-    # dengan salah satu dari 2 pola yang sah untuk pengajuan ini, jadi tidak
-    # melemahkan proteksi terhadap public_id yang ditempel sembarangan.
-    expected_public_id = f"surat-resmi/observation-request-{obs.id}"
-    folder = current_app.config.get("CLOUDINARY_UPLOAD_FOLDER")
-    expected_public_id_with_folder = f"{folder}/{expected_public_id}" if folder else expected_public_id
-    if public_id not in (expected_public_id, expected_public_id_with_folder):
-        return jsonify(ok=False, message="public_id tidak sesuai dengan pengajuan ini."), 400
+    pdf_file = request.files.get("pdf")
+    if pdf_file is None or not pdf_file.filename:
+        return jsonify(ok=False, message="File PDF final wajib diunggah."), 400
 
     try:
-        upload_result = obs_service.upload_final_pdf(
-            obs, secure_url=secure_url, public_id=public_id, resource_type=resource_type
+        max_size_mb = max(1, current_app.config.get("MAX_CONTENT_LENGTH", 10 * 1024 * 1024) // (1024 * 1024))
+        pdf_bytes = validate_upload_content(
+            pdf_file,
+            category=CATEGORY_PDF,
+            max_size_mb=max_size_mb,
         )
-    except (obs_service.ObservationRequestError, cloudinary_service.CloudinaryServiceError) as exc:
+        current_app.logger.info(
+            "Upload PDF final id=%s: ukuran file diterima=%s bytes.",
+            request_id,
+            len(pdf_bytes),
+        )
+        upload_result = obs_service.upload_final_pdf(obs, pdf_bytes)
+    except (UploadValidationError, obs_service.ObservationRequestError) as exc:
         return jsonify(ok=False, message=str(exc)), 400
 
     current_app.logger.info(
-        "PDF final pengajuan id=%s diunggah browser langsung ke Cloudinary dan tercatat di backend.",
+        "PDF final pengajuan id=%s diterima dari browser dan diunggah ke Cloudinary.",
         obs.id,
     )
     return jsonify(

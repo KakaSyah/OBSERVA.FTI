@@ -269,7 +269,6 @@ const kaprodiReviewRequests = [
         lecturerSignatureUrl: {{ item.lecturer.signature_url | tojson }},
         approveUrl: {{ url_for('kaprodi.setujui_surat', request_id=item.id) | tojson }},
         uploadFinalPdfUrl: {{ url_for('kaprodi.upload_final_pdf', request_id=item.id) | tojson }},
-        finalPdfUploadSignatureUrl: {{ url_for('kaprodi.final_pdf_upload_signature', request_id=item.id) | tojson }},
         rejectUrl: {{ url_for('kaprodi.tolak_surat', request_id=item.id) | tojson }}
     }{{ "," if not loop.last }}
 {% endfor %}
@@ -367,54 +366,14 @@ async function uploadFinalPdf(data, pdfBlob) {
     const megabyte = 1024 * 1024;
     console.info(`[Final PDF] Blob hybrid yang dikirim: ${(pdfBlob.size / megabyte).toFixed(2)} MB (${pdfBlob.size} bytes)`);
 
-    // 1) Minta signed upload params ke backend (payload kecil, JSON saja).
-    const signatureResponse = await fetch(data.finalPdfUploadSignatureUrl, {
-        method: "GET",
-        credentials: "same-origin",
-        headers: { "X-CSRFToken": "{{ csrf_token() }}" }
-    });
-    const signatureResult = await signatureResponse.json().catch(() => ({}));
-    if (!signatureResponse.ok || !signatureResult.ok) {
-        throw new Error(signatureResult.message || "Gagal menyiapkan proses unggah PDF final.");
-    }
+    const payload = new FormData();
+    payload.append("pdf", pdfBlob, "Surat_Observasi.pdf");
 
-    // 2) Unggah PDF LANGSUNG ke Cloudinary dari browser (tidak lewat backend
-    //    Vercel sama sekali), supaya tidak lagi terbentur limit ~4.5MB body
-    //    request Serverless Function -- limit itu berlaku di titik backend,
-    //    bukan di Cloudinary.
-    const cloudinaryPayload = new FormData();
-    cloudinaryPayload.append("file", pdfBlob, "Surat_Observasi.pdf");
-    cloudinaryPayload.append("api_key", signatureResult.api_key);
-    cloudinaryPayload.append("timestamp", signatureResult.timestamp);
-    cloudinaryPayload.append("signature", signatureResult.signature);
-    cloudinaryPayload.append("public_id", signatureResult.public_id);
-    if (signatureResult.folder) {
-        cloudinaryPayload.append("folder", signatureResult.folder);
-    }
-
-    const cloudinaryResponse = await fetch(signatureResult.upload_url, {
-        method: "POST",
-        body: cloudinaryPayload
-    });
-    const cloudinaryResult = await cloudinaryResponse.json().catch(() => ({}));
-    if (!cloudinaryResponse.ok || !cloudinaryResult.secure_url) {
-        throw new Error((cloudinaryResult.error && cloudinaryResult.error.message) || "Gagal mengunggah PDF final ke Cloudinary.");
-    }
-
-    // 3) Kirim metadata hasil upload (URL + public_id, kecil) ke backend
-    //    supaya dicatat ke database dan email notifikasi dikirim.
     const response = await fetch(data.uploadFinalPdfUrl, {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify({
-            secure_url: cloudinaryResult.secure_url,
-            public_id: cloudinaryResult.public_id,
-            resource_type: cloudinaryResult.resource_type || "raw"
-        })
+        headers: { "X-CSRFToken": "{{ csrf_token() }}" },
+        body: payload
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok) {
