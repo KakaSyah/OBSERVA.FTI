@@ -27,6 +27,14 @@ login sejak Tahap 4). Header ini murni pertahanan sisi browser/klien:
     -- migrasi penuh ke skrip eksternal + nonce adalah pekerjaan
     styling/refactor templat yang di luar cakupan Tahap 13, dicatat sebagai
     catatan keamanan di README.
+    `connect-src` mengizinkan `https://api.cloudinary.com` karena PDF final
+    Alur 2 (Kirim TTD Digital) diunggah browser Kaprodi LANGSUNG ke
+    Cloudinary (fetch() cross-origin) untuk menghindari limit ~4.5MB body
+    request Vercel Serverless Function -- lihat
+    `frontend/templates/kaprodi/dashboard.html::uploadFinalPdf()` dan
+    `backend/services/cloudinary_service.py::generate_signed_upload_params()`.
+    Tanpa ini, browser akan memblokir fetch() tersebut dengan pesan CSP
+    "violates ... default-src 'self'" walau request-nya sendiri valid.
 - Strict-Transport-Security (HSTS)
     HANYA dikirim saat request datang lewat HTTPS (produksi di balik
     reverse proxy/HTTPS) -- mengirim HSTS di HTTP polos (mis. saat
@@ -42,6 +50,7 @@ _CSP = (
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "img-src 'self' data: https://res.cloudinary.com; "
     "font-src 'self' https://cdn.jsdelivr.net; "
+    "connect-src 'self' https://api.cloudinary.com; "
     "object-src 'none'; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
