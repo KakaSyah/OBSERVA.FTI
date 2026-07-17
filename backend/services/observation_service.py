@@ -945,13 +945,26 @@ def approve_by_head_of_program(obs, actor_user, note: str | None):
         raise
 
 
-def upload_final_pdf(obs, cloudinary_result: dict) -> dict:
-    """Simpan PDF final yang sudah dibuat browser setelah persetujuan Kaprodi."""
+def _fetch_bytes_from_url(url: str, timeout: int = 20) -> bytes:
+    """Ambil kembali isi file dari URL publik (dipakai untuk lampiran email
+    setelah PDF final diunggah browser LANGSUNG ke Cloudinary)."""
+    import urllib.request
+
+    with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 - URL dari Cloudinary sendiri
+        return response.read()
+
+
+def upload_final_pdf(obs, *, secure_url: str, public_id: str, resource_type: str = "raw") -> dict:
+    """Catat PDF final yang sudah diunggah BROWSER LANGSUNG ke Cloudinary
+    (bukan lewat backend lagi -- lihat cloudinary_service.generate_signed_upload_params)
+    setelah persetujuan Kaprodi, lalu kirim email notifikasi dengan lampiran PDF."""
     if (getattr(obs, "status_kaprodi", "") or "").strip().lower() != "disetujui":
         raise ObservationRequestError("PDF final hanya dapat diunggah setelah persetujuan Kaprodi.")
 
     try:
-        upload_result = cloudinary_service.record_official_letter_pdf(cloudinary_result, obs.id)
+        upload_result = cloudinary_service.register_official_letter_pdf(
+            obs.id, secure_url=secure_url, public_id=public_id, resource_type=resource_type
+        )
         cursor = db.execute(
             "UPDATE `dokumen_surat` SET `id_file_pdf` = %s, `tanggal_upload_pdf` = NOW() "
             "WHERE `id_pengajuan` = %s",
@@ -969,26 +982,41 @@ def upload_final_pdf(obs, cloudinary_result: dict) -> dict:
 
         db.commit()
 
-        # Send notification email with PDF attachment; do NOT fail overall if email fails.
+        # PDF sudah ada di Cloudinary (diunggah langsung oleh browser demi
+        # menghindari limit 413 Vercel), tapi email (Resend) tetap perlu
+        # melampirkan file-nya sebagai bytes -- ambil kembali dari secure_url
+        # yang sama. Kalau proses ambil-ulang ini gagal, JANGAN gagalkan
+        # seluruh proses (PDF & data sudah tersimpan dengan benar) --
+        # cukup catat sebagai EmailLog gagal, sama seperti pola gagal-email
+        # yang sudah ada di bawah.
         try:
-            pdf_bytes = cloudinary_service.fetch_uploaded_bytes(
-                upload_result["secure_url"], max_bytes=15 * 1024 * 1024
-            )
-        except cloudinary_service.CloudinaryServiceError as exc:
+            pdf_bytes = _fetch_bytes_from_url(secure_url)
+        except Exception as exc:
             try:
                 current_app.logger.error(
-                    "Gagal mengambil PDF dari Cloudinary untuk email pengajuan id=%s: %s",
-                    obs.id,
-                    exc,
+                    "Gagal mengambil kembali PDF final dari Cloudinary untuk lampiran email id=%s: %s", obs.id, exc
                 )
             except RuntimeError:
                 import logging as _log
 
                 _log.getLogger(__name__).error(
-                    "Gagal mengambil PDF dari Cloudinary untuk email pengajuan id=%s: %s",
-                    obs.id,
-                    exc,
+                    "Gagal mengambil kembali PDF final dari Cloudinary untuk lampiran email id=%s: %s", obs.id, exc
                 )
+            pdf_bytes = None
+
+        # Send notification email with PDF attachment; do NOT fail overall if email fails.
+        try:
+            if pdf_bytes is None:
+                raise ObservationRequestError("PDF bytes tidak tersedia (gagal diambil ulang dari Cloudinary).")
+            email_log = email_service.notify_official_letter_issued(obs, pdf_bytes)
+        except Exception as exc:
+            # If email_service raises (shouldn't in normal flow), convert to failed EmailLog
+            try:
+                current_app.logger.error("Gagal mengirim email surat resmi untuk pengajuan id=%s: %s", obs.id, exc)
+            except RuntimeError:
+                import logging as _log
+
+                _log.getLogger(__name__).error("Gagal mengirim email surat resmi untuk pengajuan id=%s: %s", obs.id, exc)
             from backend.models.email_log import EmailLog
             email_log = EmailLog(
                 observation_request_id=obs.id,
@@ -997,25 +1025,6 @@ def upload_final_pdf(obs, cloudinary_result: dict) -> dict:
                 status=EmailLog.STATUS_FAILED,
                 error_message=str(exc)[:500],
             )
-        else:
-            try:
-                email_log = email_service.notify_official_letter_issued(obs, pdf_bytes)
-            except Exception as exc:
-                # If email_service raises (shouldn't in normal flow), convert to failed EmailLog
-                try:
-                    current_app.logger.error("Gagal mengirim email surat resmi untuk pengajuan id=%s: %s", obs.id, exc)
-                except RuntimeError:
-                    import logging as _log
-
-                    _log.getLogger(__name__).error("Gagal mengirim email surat resmi untuk pengajuan id=%s: %s", obs.id, exc)
-                from backend.models.email_log import EmailLog
-                email_log = EmailLog(
-                    observation_request_id=obs.id,
-                    recipient_email=getattr(getattr(obs, 'student', None), 'user', SimpleNamespace(email='')).email,
-                    subject=f"Surat Izin Observasi Resmi Terbit — {getattr(getattr(obs, 'letter_number', None), 'formatted_number', '')}",
-                    status=EmailLog.STATUS_FAILED,
-                    error_message=str(exc)[:500],
-                )
 
         # Persist email log and activity log in same transactional flow
         try:

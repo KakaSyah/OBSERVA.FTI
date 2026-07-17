@@ -13,7 +13,7 @@ from flask import abort, current_app, flash, jsonify, redirect, render_template,
 from flask_login import current_user, logout_user
 
 from backend.forms.kaprodi_forms import ApprovalNoteForm, ProfileForm
-from backend.services import kop_setting_service, observation_service as obs_service
+from backend.services import cloudinary_service, kop_setting_service, observation_service as obs_service
 from backend.extensions import db
 
 
@@ -146,43 +146,52 @@ def approve_request(request_id):
     return redirect(url_for("kaprodi.detail_persetujuan", request_id=obs.id))
 
 
-def sign_final_pdf_upload(request_id):
-    """Buat signed upload params agar browser mengunggah PDF final langsung ke Cloudinary."""
-    head_of_program = _current_head_of_program()
-    if head_of_program is None:
-        return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
-    _get_head_of_program_request_or_404(request_id, head_of_program)
-
-    try:
-        signed_params = obs_service.cloudinary_service.generate_signed_upload_params(request_id)
-    except obs_service.cloudinary_service.CloudinaryServiceError as exc:
-        return jsonify(ok=False, message=str(exc)), 400
-
-    return jsonify(ok=True, **signed_params)
-
-
-def upload_final_pdf(request_id):
-    """Terima referensi hasil upload Cloudinary dari browser; backend hanya mencatatnya dan mengirim notifikasi."""
+def final_pdf_upload_signature(request_id):
+    """Hasilkan signed upload params agar browser Kaprodi bisa unggah PDF
+    final LANGSUNG ke Cloudinary (bypass limit ~4.5MB body request Vercel
+    Serverless Function -- lihat cloudinary_service.generate_signed_upload_params)."""
     head_of_program = _current_head_of_program()
     if head_of_program is None:
         return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
     obs = _get_head_of_program_request_or_404(request_id, head_of_program)
+    try:
+        params = cloudinary_service.generate_signed_upload_params(obs.id)
+    except cloudinary_service.CloudinaryServiceError as exc:
+        return jsonify(ok=False, message=str(exc)), 500
+    return jsonify(ok=True, **params)
+
+
+def upload_final_pdf(request_id):
+    """Catat PDF final yang SUDAH diunggah browser LANGSUNG ke Cloudinary
+    (lewat signed params dari final_pdf_upload_signature) -- backend di sini
+    hanya menerima metadata kecil (secure_url/public_id), bukan file PDF-nya
+    sendiri, supaya tidak lagi kena limit ~4.5MB body request Vercel."""
+    head_of_program = _current_head_of_program()
+    if head_of_program is None:
+        return jsonify(ok=False, message="Sesi Kaprodi tidak valid."), 401
+    obs = _get_head_of_program_request_or_404(request_id, head_of_program)
+
     payload = request.get_json(silent=True) or {}
-    cloudinary_result = payload.get("cloudinaryResult")
-    if not isinstance(cloudinary_result, dict):
-        return jsonify(ok=False, message="Data hasil upload Cloudinary tidak lengkap."), 400
-    if not cloudinary_result.get("public_id") or not cloudinary_result.get("secure_url") or not cloudinary_result.get("resource_type"):
-        return jsonify(ok=False, message="Data hasil upload Cloudinary tidak lengkap."), 400
+    secure_url = (payload.get("secure_url") or "").strip()
+    public_id = (payload.get("public_id") or "").strip()
+    resource_type = (payload.get("resource_type") or "raw").strip() or "raw"
+
+    if not secure_url or not public_id:
+        return jsonify(ok=False, message="Data hasil unggah Cloudinary (secure_url/public_id) wajib dikirim."), 400
+    # Pastikan public_id memang milik pengajuan ini (bukan hasil tempelan
+    # sembarang) -- samakan formatnya dengan yang dibuat generate_signed_upload_params.
+    if public_id != f"surat-resmi/observation-request-{obs.id}":
+        return jsonify(ok=False, message="public_id tidak sesuai dengan pengajuan ini."), 400
 
     try:
-        upload_result = obs_service.upload_final_pdf(obs, cloudinary_result)
-    except obs_service.ObservationRequestError as exc:
-        return jsonify(ok=False, message=str(exc)), 400
-    except obs_service.cloudinary_service.CloudinaryServiceError as exc:
+        upload_result = obs_service.upload_final_pdf(
+            obs, secure_url=secure_url, public_id=public_id, resource_type=resource_type
+        )
+    except (obs_service.ObservationRequestError, cloudinary_service.CloudinaryServiceError) as exc:
         return jsonify(ok=False, message=str(exc)), 400
 
     current_app.logger.info(
-        "PDF final pengajuan id=%s dicatat dari referensi Cloudinary.",
+        "PDF final pengajuan id=%s diunggah browser langsung ke Cloudinary dan tercatat di backend.",
         obs.id,
     )
     return jsonify(

@@ -44,18 +44,20 @@ def setujui_surat(request_id):
     return controller.approve_request(request_id)
 
 
-@kaprodi_bp.route("/upload-final-pdf/<int:request_id>/sign", methods=["POST"])
-@role_required(Role.KAPRODI)
-def sign_final_pdf_upload(request_id):
-    """Buat signed upload params agar browser bisa mengunggah PDF final langsung ke Cloudinary."""
-    return controller.sign_final_pdf_upload(request_id)
-
-
 @kaprodi_bp.route("/upload-final-pdf/<int:request_id>", methods=["POST"])
 @role_required(Role.KAPRODI)
 def upload_final_pdf(request_id):
-    """Terima referensi hasil upload Cloudinary (JSON), bukan file PDF mentah lagi."""
+    """Terima PDF final yang dibuat html2canvas + jsPDF di browser Kaprodi."""
     return controller.upload_final_pdf(request_id)
+
+
+@kaprodi_bp.route("/final-pdf-upload-signature/<int:request_id>", methods=["GET"])
+@role_required(Role.KAPRODI)
+def final_pdf_upload_signature(request_id):
+    """Signed upload params agar browser bisa unggah PDF final LANGSUNG ke
+    Cloudinary (menghindari limit ~4.5MB body request Vercel Serverless
+    Function). Payload respons kecil (JSON), tidak terpengaruh limit itu."""
+    return controller.final_pdf_upload_signature(request_id)
 
 
 @kaprodi_bp.route("/daftar-persetujuan/<int:request_id>/tolak", methods=["POST"])
